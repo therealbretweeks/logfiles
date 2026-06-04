@@ -306,6 +306,7 @@
         function appendItemsToGrid(items) {
             const gallery = document.getElementById('gallery');
             let targetItems = items.filter(v => {
+                if (!v.title || !v.title.trim() || !v.url) return false;
                 if (chosenSiteFilter === "All") return true;
                 return v.source.toLowerCase() === chosenSiteFilter.toLowerCase();
             });

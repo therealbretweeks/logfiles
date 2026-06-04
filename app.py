@@ -82,15 +82,24 @@ def is_exact(q):
     return (q.startswith('"') and q.endswith('"')) or (q.startswith("'") and q.endswith("'"))
 
 def make_record(title, url, thumb, source, duration=600):
+    t = title.strip() if title else ''
+    if not t or not url:
+        return None
     return {
-        "title": title.strip(),
+        "title": t,
         "url": url,
-        "thumb": thumb,
+        "thumb": thumb or '',
         "source": source,
         "duration": duration,
         "added_date": datetime.now().isoformat(),
         "is_album": False
     }
+
+def add_record(lst, title, url, thumb, source, duration=600):
+    """Build record and append only if valid."""
+    r = make_record(title, url, thumb, source, duration)
+    if r:
+        lst.append(r)
 
 # ==================== SCRAPERS ====================
 
@@ -117,9 +126,7 @@ def scrape_spankbang(q, page=1):
                 duration = parse_duration(safe_get_text(dur_el)) if dur_el else 600
                 href = link_el.get('href', '')
                 full_url = ("https://spankbang.com" + href) if href.startswith('/') else href
-                title = safe_get_text(title_el)
-                if title and full_url:
-                    results.append(make_record(title, full_url, thumb, "SpankBang", duration))
+                add_record(results, safe_get_text(title_el), full_url, thumb, "SpankBang", duration)
             except:
                 continue
     except Exception as e:
@@ -163,17 +170,43 @@ def scrape_xhamster(q, page=1):
     try:
         url = f"https://xhamster.com/search/{requests.utils.quote(q)}?page={page}"
         res = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        items = soup.select('.thumb-list__item, .video-thumb')
+        html = res.text
+
+        # xHamster embeds video data as JSON in a script tag
+        m = re.search(r'window\.initials\s*=\s*(\{.*?\});\s*</script>', html, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(m.group(1))
+                videos = (data.get('searchResult', {}) or data.get('videoSearchResult', {})).get('models', [])
+                for v in videos:
+                    title = v.get('title') or v.get('name') or ''
+                    vid_url = v.get('pageURL') or v.get('url') or ''
+                    thumb = (v.get('thumbURL') or v.get('thumbnailURL') or
+                             v.get('coverURL') or v.get('thumbs', [{}])[0].get('src', '') if v.get('thumbs') else '')
+                    duration = v.get('duration') or 600
+                    add_record(results, title, vid_url, thumb, "xHamster", int(duration))
+                print(f"xHamster JSON q={q!r} p={page}: {len(results)} items")
+                return results
+            except Exception as je:
+                print(f"xHamster JSON parse error: {je}")
+
+        # Fallback: HTML parsing
+        soup = BeautifulSoup(html, 'html.parser')
+        items = soup.select('.thumb-list__item, .video-thumb, [class*="VideoThumb"], [class*="video-thumb"]')
+        print(f"xHamster HTML q={q!r} p={page}: {len(items)} items (status {res.status_code})")
         for item in items:
             try:
-                title_el = item.select_one('.video-thumb-info__name, .thumb-title')
-                link_el = item.select_one('a[href]')
-                img_el = item.select_one('img')
-                if not (title_el and link_el):
-                    continue
+                link_el = item.select_one('a[href*="xhamster"]')
+                if not link_el:
+                    link_el = item.select_one('a[href]')
+                title = (link_el.get('title') or '') if link_el else ''
+                if not title:
+                    title_el = item.select_one('[class*="title"], [class*="name"], h3, h4')
+                    title = safe_get_text(title_el)
+                img_el = item.select_one('img[data-src], img[src]')
                 thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
-                results.append(make_record(safe_get_text(title_el), link_el.get('href', ''), thumb, "xHamster"))
+                vid_url = link_el.get('href', '') if link_el else ''
+                add_record(results, title, vid_url, thumb, "xHamster")
             except:
                 continue
     except Exception as e:
@@ -198,8 +231,8 @@ def scrape_xvideos(q, page=0):
                 dur_el = item.select_one('.duration')
                 href = link_el.get('href', '')
                 full_url = ("https://www.xvideos.com" + href) if href.startswith('/') else href
-                results.append(make_record(safe_get_text(title_el), full_url, thumb, "XVideos",
-                                           parse_duration(safe_get_text(dur_el)) if dur_el else 600))
+                add_record(results, safe_get_text(title_el), full_url, thumb, "XVideos",
+                           parse_duration(safe_get_text(dur_el)) if dur_el else 600)
             except:
                 continue
     except Exception as e:
@@ -223,7 +256,7 @@ def scrape_xnxx(q, page=0):
                 thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
                 href = link_el.get('href', '')
                 full_url = ("https://www.xnxx.com" + href) if href.startswith('/') else href
-                results.append(make_record(safe_get_text(title_el), full_url, thumb, "XNXX"))
+                add_record(results, safe_get_text(title_el), full_url, thumb, "XNXX")
             except:
                 continue
     except Exception as e:
@@ -250,8 +283,8 @@ def scrape_pornhub(q, page=1):
                 dur_el = item.select_one('.duration, var.duration')
                 href = link_el.get('href', '')
                 full_url = ("https://www.pornhub.com" + href) if href.startswith('/') else href
-                results.append(make_record(safe_get_text(title_el), full_url, thumb, "Pornhub",
-                                           parse_duration(safe_get_text(dur_el)) if dur_el else 600))
+                add_record(results, safe_get_text(title_el), full_url, thumb, "Pornhub",
+                           parse_duration(safe_get_text(dur_el)) if dur_el else 600)
             except:
                 continue
     except Exception as e:
@@ -275,7 +308,7 @@ def scrape_beeg(q, page=1):
                 thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
                 href = link_el.get('href', '')
                 full_url = ("https://beeg.com" + href) if href.startswith('/') else href
-                results.append(make_record(safe_get_text(title_el), full_url, thumb, "Beeg"))
+                add_record(results, safe_get_text(title_el), full_url, thumb, "Beeg")
             except:
                 continue
     except Exception as e:
@@ -382,7 +415,8 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
     new_records, seen = [], set()
     for record in aggregated:
         u = record.get("url")
-        if u and u not in existing_urls and u not in seen:
+        t = record.get("title", "").strip()
+        if u and t and u not in existing_urls and u not in seen:
             new_records.append(record)
             seen.add(u)
 
