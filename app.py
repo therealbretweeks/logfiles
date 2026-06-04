@@ -387,6 +387,36 @@ def scrape_camstreams(q, page=1):
     return results
 
 
+def scrape_beeg(q, page=1):
+    results = []
+    try:
+        url = f"https://beeg.com/index.php?query={requests.utils.quote(q)}&page={page}"
+        res = safe_get(url)
+        if not res or res.status_code != 200:
+            return results
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for item in soup.select('[data-id], .video-item, article.video'):
+            try:
+                link_el = item.select_one('a[href]')
+                title_el = item.select_one('.title, h3, [class*="title"]')
+                img_el = item.select_one('img[data-src], img[src]')
+                if not (link_el and title_el):
+                    continue
+                title = safe_get_text(title_el)
+                href = link_el.get('href', '')
+                full_url = ('https://beeg.com' + href) if href.startswith('/') else href
+                thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                dur_el = item.select_one('.duration, [class*="dur"]')
+                add_record(results, title, full_url, thumb, "Beeg",
+                           parse_duration(safe_get_text(dur_el)) if dur_el else 600)
+            except:
+                continue
+        print(f"Beeg q={q!r} p={page}: {len(results)} items")
+    except Exception as e:
+        print(f"Beeg error: {e}")
+    return results
+
+
 # ==================== ORCHESTRATION ====================
 
 SCRAPERS = [
@@ -396,6 +426,7 @@ SCRAPERS = [
     scrape_xvideos,
     scrape_xnxx,
     scrape_pornhub,
+    scrape_beeg,
     scrape_camstreams,
 ]
 
