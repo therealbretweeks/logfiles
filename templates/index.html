@@ -13,11 +13,13 @@
             --text-main: #f0f0f5;
             --text-muted: #5a5a66;
             --border: #151520;
+            --green: #00d46a;
+            --green-glow: rgba(0,212,106,0.4);
         }
 
-        body { 
-            background: var(--bg-base); color: var(--text-main); 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+        body {
+            background: var(--bg-base); color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             padding: 0; margin: 0; display: flex; min-height: 100vh;
         }
 
@@ -25,7 +27,7 @@
         .right-sidebar { width: 290px; background: var(--bg-surface); border-left: 1px solid var(--border); padding: 24px 15px; overflow-y: auto; height: 100vh; position: fixed; right: 0; top: 0; z-index: 100; }
         .right-sidebar h4 { margin: 0 0 15px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
         .sidebar-list { list-style: none; padding: 0; margin: 0; }
-        .sidebar-list li { padding: 9px 11px; font-size: 11.5px; color: var(--text-muted); border-bottom: 1px solid rgba(21, 21, 32, 0.5); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s; }
+        .sidebar-list li { padding: 9px 11px; font-size: 11.5px; color: var(--text-muted); border-bottom: 1px solid rgba(21,21,32,0.5); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s; }
         .sidebar-list li:hover { color: var(--accent); background: rgba(255,140,58,0.03); }
         .sidebar-list li.active-tube { color: #fff; font-weight: bold; background: rgba(255,140,58,0.08); border-radius: 4px; border-left: 2px solid var(--accent); }
         .counter-badge { font-size: 10px; background: var(--bg-card); padding: 2px 6px; border-radius: 8px; color: var(--text-muted); border: 1px solid var(--border); font-weight: bold; }
@@ -35,23 +37,36 @@
         .banner-link:hover { transform: scale(1.01); }
         .banner-link h1 { font-size: 40px; letter-spacing: 7px; font-weight: 900; margin: 10px 0 2px; text-shadow: 0 0 12px var(--accent-glow); }
         p.subtitle { text-align: center; color: var(--text-muted); margin-bottom: 25px; font-size: 11px; text-transform: uppercase; letter-spacing: 4px; }
-        
+
         .matrix-nav { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; }
         .nav-tab { padding: 10px 20px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.2s ease; }
         .nav-tab:hover { border-color: var(--accent); color: var(--text-main); }
         .nav-tab.active-tab { background: rgba(255,140,58,0.1); border-color: var(--accent); color: #fff; box-shadow: 0 0 10px var(--accent-glow); }
 
+        /* === EXACT GAUGE === */
+        .gauge-row { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .exact-gauge { display: flex; align-items: center; gap: 7px; cursor: pointer; padding: 5px 14px; border-radius: 20px; background: var(--bg-card); border: 1px solid var(--border); transition: all 0.25s; user-select: none; }
+        .exact-gauge:hover { border-color: rgba(0,212,106,0.3); }
+        .exact-gauge.gauge-active { border-color: rgba(0,212,106,0.5); background: rgba(0,212,106,0.06); }
+        .gauge-pip { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); border: 1px solid #333; transition: all 0.3s; flex-shrink: 0; }
+        .gauge-active .gauge-pip { background: var(--green); border-color: var(--green); box-shadow: 0 0 8px var(--green-glow), 0 0 2px var(--green); }
+        .gauge-label { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); transition: color 0.25s; }
+        .gauge-active .gauge-label { color: var(--green); }
+
+        /* === SORT ROW === */
+        .sort-row { display: flex; align-items: center; gap: 8px; }
+        .sort-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .sort-btn { padding: 6px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; transition: all 0.2s; }
+        .sort-btn:hover { border-color: var(--accent); color: var(--text-main); }
+        .sort-btn.active { background: rgba(255,140,58,0.1); color: var(--accent); border-color: rgba(255,140,58,0.4); }
+
         .control-panel-wrapper { display: flex; flex-direction: column; gap: 10px; margin-bottom: 30px; }
-        .control-panel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 15px; }
-        .search-container { display: flex; gap: 10px; align-items: center; width: 100%; }
+        .control-panel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+        .search-row { display: flex; gap: 10px; align-items: center; }
         .search-box { padding: 14px 18px; font-size: 13.5px; border-radius: 8px; flex-grow: 1; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); outline: none; }
         .search-box:focus { border-color: var(--accent); }
-        .search-btn { padding: 14px 28px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--accent); color: #000; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        .search-btn { padding: 14px 28px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--accent); color: #000; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
         .search-btn:hover { background: #e07226; }
-        .exact-btn { padding: 14px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-        .exact-btn.active { background: rgba(255,140,58,0.12); color: var(--accent); border-color: var(--accent); }
-        .exact-badge { display: none; font-size: 10px; font-weight: 800; color: var(--accent); background: rgba(255,140,58,0.1); border: 1px solid rgba(255,140,58,0.3); border-radius: 4px; padding: 3px 8px; margin-left: 6px; text-transform: uppercase; letter-spacing: 1px; }
-        .exact-badge.visible { display: inline-block; }
 
         .ticker-container { background: #040407; border: 1px solid var(--border); border-radius: 6px; padding: 8px 16px; overflow: hidden; display: flex; align-items: center; gap: 15px; }
         .ticker-label { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
@@ -98,14 +113,24 @@
         </div>
 
         <div class="control-panel-wrapper">
+            <div class="gauge-row">
+                <div class="exact-gauge" id="exactGauge" onclick="toggleExactMode()">
+                    <div class="gauge-pip" id="gaugePip"></div>
+                    <span class="gauge-label" id="gaugeLabel">Fuzzy Search</span>
+                </div>
+            </div>
+
             <div class="control-panel">
-                <div class="search-container">
-                    <input type="text" id="globalSearch" class="search-box" placeholder="Search... use &quot;quotes&quot; for exact match" onkeydown="if(event.key === 'Enter') triggerInstantSearch()">
-                    <button id="exactBtn" class="exact-btn" onclick="toggleExactMode()" title="Exact phrase match — wraps query in quotes">&ldquo;&nbsp;EXACT&nbsp;&rdquo;</button>
+                <div class="search-row">
+                    <input type="text" id="globalSearch" class="search-box" placeholder='Search across all networks... use "quotes" for exact match' onkeydown="if(event.key === 'Enter') triggerInstantSearch()">
                     <button class="search-btn" onclick="triggerInstantSearch()">Scan Matrix</button>
                 </div>
-                <div style="padding: 4px 0 0 2px;">
-                    <span class="exact-badge" id="exactBadge">EXACT PHRASE MODE</span>
+                <div class="sort-row">
+                    <span class="sort-label">Sort:</span>
+                    <button class="sort-btn active" id="sort-default" onclick="setSortMode('default', this)">Relevance</button>
+                    <button class="sort-btn" id="sort-duration_desc" onclick="setSortMode('duration_desc', this)">Longest</button>
+                    <button class="sort-btn" id="sort-duration_asc" onclick="setSortMode('duration_asc', this)">Shortest</button>
+                    <button class="sort-btn" id="sort-date_desc" onclick="setSortMode('date_desc', this)">Newest</button>
                 </div>
             </div>
 
@@ -143,31 +168,60 @@
         let completelyExhausted = false;
         let currentActiveMatrixPage = 1;
         let exactMode = false;
+        let currentSortMode = 'default';
 
+        // ── EXACT GAUGE ──────────────────────────────────────────────
         function toggleExactMode() {
             exactMode = !exactMode;
-            document.getElementById('exactBtn').classList.toggle('active', exactMode);
-            document.getElementById('exactBadge').classList.toggle('visible', exactMode);
-            // Wrap/unwrap current query value
+            const gauge = document.getElementById('exactGauge');
+            const label = document.getElementById('gaugeLabel');
+            gauge.classList.toggle('gauge-active', exactMode);
+            label.textContent = exactMode ? 'Exact Phrase' : 'Fuzzy Search';
             const box = document.getElementById('globalSearch');
             let val = box.value.trim().replace(/^["']|["']$/g, '');
             box.value = exactMode ? `"${val}"` : val;
         }
 
+        function syncGaugeToQuery(raw) {
+            const hasQuotes = (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"));
+            if (hasQuotes !== exactMode) {
+                exactMode = hasQuotes;
+                document.getElementById('exactGauge').classList.toggle('gauge-active', exactMode);
+                document.getElementById('gaugeLabel').textContent = exactMode ? 'Exact Phrase' : 'Fuzzy Search';
+            }
+        }
+
         function getSearchQuery() {
             const raw = document.getElementById('globalSearch').value.trim();
-            const hasQuotes = (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"));
-            exactMode = hasQuotes;
-            document.getElementById('exactBtn').classList.toggle('active', exactMode);
-            document.getElementById('exactBadge').classList.toggle('visible', exactMode);
+            syncGaugeToQuery(raw);
             return raw;
         }
 
+        // ── SORT ─────────────────────────────────────────────────────
+        function setSortMode(mode, btn) {
+            currentSortMode = mode;
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Re-render with sorted pool (frontend sort for already-loaded items)
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+            appendItemsToGrid(getSortedPool(visualRegistryPool));
+        }
+
+        function getSortedPool(pool) {
+            let p = [...pool];
+            if (currentSortMode === 'duration_desc') p.sort((a,b) => (b.duration||0) - (a.duration||0));
+            else if (currentSortMode === 'duration_asc') p.sort((a,b) => (a.duration||0) - (b.duration||0));
+            else if (currentSortMode === 'date_desc') p.sort((a,b) => (b.added_date||'').localeCompare(a.added_date||''));
+            return p;
+        }
+
+        // ── TABS ─────────────────────────────────────────────────────
         const FORBIDDEN_CHECK = ["feet", "foot", "toes", "footjob", "shrimping", "oralfoot"];
 
         const TICKER_TARGET_PHRASES = [
-            "daddy kink", "stepdaughter joi", "taboo daddy daughter joi", 
-            "daddy's little accomplice", "stepdaughter helps daddy cum", 
+            "daddy kink", "stepdaughter joi", "taboo daddy daughter joi",
+            "daddy's little accomplice", "stepdaughter helps daddy cum",
             "daddy makes stepdaughter say pussy", "taboo stepfamily secret joi",
             "daddy's girl dirty talk joi", "stepfamily joi daddy", "ddlg little space",
             "stepdad fantasy", "daddy controls my orgasm", "our taboo secret",
@@ -198,33 +252,28 @@
         function switchMatrixPage(pageNumber) {
             currentActiveMatrixPage = pageNumber;
             updateTabHighlightStates();
-            
             let targetQuery = "";
-            if (pageNumber === 2) {
-                targetQuery = "ginger lynn, christy canyon, lacey rose, kasey kox";
-            } else if (pageNumber === 3) {
-                targetQuery = "bree olsen, riley reid";
-            } else if (pageNumber === 4) {
-                targetQuery = "brooke marie";
-            }
-            
+            if (pageNumber === 2) targetQuery = "ginger lynn, christy canyon, lacey rose, kasey kox";
+            else if (pageNumber === 3) targetQuery = "bree olsen, riley reid";
+            else if (pageNumber === 4) targetQuery = "brooke marie";
             document.getElementById('globalSearch').value = targetQuery;
             executeSearchStream(targetQuery, true);
         }
 
         function updateTabHighlightStates() {
-            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active-tab'));
-            const activeTab = document.getElementById(`tab-page-${currentActiveMatrixPage}`);
-            if (activeTab) activeTab.classList.add('active-tab');
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active-tab'));
+            const t = document.getElementById(`tab-page-${currentActiveMatrixPage}`);
+            if (t) t.classList.add('active-tab');
         }
 
+        // ── SEARCH ENGINE ─────────────────────────────────────────────
         async function executeSearchStream(query, flushExisting = false) {
             if (flushExisting) {
                 activePageCursor = 1;
                 visualRegistryPool = [];
                 completelyExhausted = false;
                 document.getElementById('gallery').innerHTML = '';
-                document.getElementById('scrollStatus').textContent = 'Loading...';
+                document.getElementById('scrollStatus').textContent = 'Loading…';
             }
 
             if (FORBIDDEN_CHECK.some(t => query.toLowerCase().includes(t))) {
@@ -235,8 +284,7 @@
             blockScrollTrigger = true;
 
             try {
-                let url = `/fast_search?query=${encodeURIComponent(query)}&page=${activePageCursor}`;
-
+                let url = `/fast_search?query=${encodeURIComponent(query)}&page=${activePageCursor}&sort=${currentSortMode}`;
                 if (chosenSiteFilter && chosenSiteFilter !== "All") {
                     url += `&source=${encodeURIComponent(chosenSiteFilter)}`;
                 }
@@ -247,22 +295,21 @@
                 if (!Array.isArray(incomingBatch) || incomingBatch.length === 0) {
                     if (visualRegistryPool.length === 0) {
                         document.getElementById('gallery').innerHTML =
-                            '<p style="text-align:center; color:var(--text-muted); grid-column:1/-1; padding:60px;">No results found.</p>';
-                        completelyExhausted = true;
-                    } else {
-                        // No new results this page but may have more on next scrape batch
-                        completelyExhausted = true;
-                        document.getElementById('scrollStatus').textContent = 'END OF RESULTS';
+                            '<p style="text-align:center;color:var(--text-muted);grid-column:1/-1;padding:60px;">No results found.</p>';
                     }
+                    completelyExhausted = true;
+                    document.getElementById('scrollStatus').textContent = 'END OF RESULTS';
                     blockScrollTrigger = false;
                     updateSidebarCounters();
                     return;
                 }
 
-                visualRegistryPool = [...visualRegistryPool, ...incomingBatch];
+                // Merge, deduplicate by url
+                const existingUrls = new Set(visualRegistryPool.map(r => r.url));
+                const newItems = incomingBatch.filter(r => r.title && r.url && !existingUrls.has(r.url));
+                visualRegistryPool = [...visualRegistryPool, ...newItems];
                 updateSidebarCounters();
-                appendItemsToGrid(incomingBatch);
-                
+                appendItemsToGrid(getSortedPool(newItems));
                 activePageCursor++;
                 blockScrollTrigger = false;
                 document.getElementById('scrollStatus').textContent = 'Scroll down to load more content';
@@ -273,59 +320,56 @@
             }
         }
 
+        // ── SIDEBAR ───────────────────────────────────────────────────
         function updateSidebarCounters() {
-            let distribution = {};
-            let totalCount = 0;
-
+            let dist = {}, total = 0;
             visualRegistryPool.forEach(item => {
-                totalCount++;
-                distribution[item.source] = (distribution[item.source] || 0) + 1;
+                total++;
+                dist[item.source] = (dist[item.source] || 0) + 1;
             });
-
-            document.getElementById('total-count-badge').textContent = totalCount;
-            const listItems = document.querySelectorAll('.sidebar-list li:not(#all-tubes-btn)');
-            listItems.forEach(li => {
+            document.getElementById('total-count-badge').textContent = total;
+            document.querySelectorAll('.sidebar-list li:not(#all-tubes-btn)').forEach(li => {
                 const badge = li.querySelector('.counter-badge');
                 const site = li.querySelector('span').textContent.trim();
-                badge.textContent = distribution[site] || 0;
+                badge.textContent = dist[site] || 0;
             });
         }
 
         function filterByActiveSite(siteName) {
             chosenSiteFilter = siteName;
-            const elements = document.querySelectorAll('.sidebar-list li');
-            elements.forEach(el => {
+            document.querySelectorAll('.sidebar-list li').forEach(el => {
                 el.classList.remove('active-tube');
-                let innerTitle = el.querySelector('span').textContent.trim().toLowerCase();
-                if(innerTitle === siteName.toLowerCase() || (siteName === "All" && innerTitle === "all discovered tracks")) {
+                const txt = el.querySelector('span').textContent.trim().toLowerCase();
+                if (txt === siteName.toLowerCase() || (siteName === "All" && txt === "all discovered tracks")) {
                     el.classList.add('active-tube');
                 }
             });
-            
-            document.getElementById('gallery').innerHTML = '';
-            appendItemsToGrid(visualRegistryPool);
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+            appendItemsToGrid(getSortedPool(visualRegistryPool));
         }
 
+        // ── GRID ──────────────────────────────────────────────────────
         function appendItemsToGrid(items) {
             const gallery = document.getElementById('gallery');
-            let targetItems = items.filter(v => {
+            const filtered = items.filter(v => {
                 if (!v.title || !v.title.trim() || !v.url) return false;
                 if (chosenSiteFilter === "All") return true;
                 return v.source.toLowerCase() === chosenSiteFilter.toLowerCase();
             });
-
-            targetItems.forEach(v => {
+            filtered.forEach(v => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                const safeSource = (v.source || '').replace(/'/g, "\\'");
                 card.innerHTML = `
                     <div class="media-container">
-                        <img src="${v.thumb}" alt="" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400';">
+                        <img src="${v.thumb}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400';">
                         <div class="trt-badge">${formatTime(v.duration)}</div>
                     </div>
-                    <h3><a href="${v.url}" target="_blank">${v.title}</a></h3>
+                    <h3><a href="${v.url}" target="_blank" rel="noopener">${escHtml(v.title)}</a></h3>
                     <div class="card-footer">
-                        <span class="source-tag" onclick="event.stopPropagation(); filterByActiveSite('${v.source}')">${v.source}</span>
-                        <span class="date-tag">Live Feed</span>
+                        <span class="source-tag" onclick="event.stopPropagation();filterByActiveSite('${safeSource}')">${escHtml(v.source)}</span>
+                        <span class="date-tag">${v.added_date ? v.added_date.slice(0,10) : 'Live'}</span>
                     </div>
                 `;
                 gallery.appendChild(card);
@@ -334,19 +378,23 @@
 
         function formatTime(sec) {
             if (!sec) return "10:00";
-            let m = Math.floor(sec / 60);
-            let s = sec % 60;
+            const m = Math.floor(sec / 60), s = sec % 60;
             return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
         }
 
+        function escHtml(s) {
+            return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // ── INFINITE SCROLL ───────────────────────────────────────────
         window.addEventListener('scroll', () => {
             if (blockScrollTrigger || completelyExhausted) return;
             const scrollBottom = window.innerHeight + window.scrollY;
             const pageHeight = document.documentElement.scrollHeight;
-            if (scrollBottom >= pageHeight - 400) {
-                const currentQuery = getSearchQuery();
-                document.getElementById('scrollStatus').textContent = `PAGINATING SYSTEM REQ: LOADING PAGE ${activePageCursor}...`;
-                executeSearchStream(currentQuery, false);
+            if (scrollBottom >= pageHeight - 500) {
+                const q = getSearchQuery();
+                document.getElementById('scrollStatus').textContent = `Loading page ${activePageCursor}…`;
+                executeSearchStream(q, false);
             }
         });
 

@@ -7,7 +7,7 @@ import json
 import re
 import time
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 try:
     from playwright.sync_api import sync_playwright
     PLAYWRIGHT_AVAILABLE = True
@@ -43,7 +43,7 @@ BASE_HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 }
 
-def safe_get(url, extra_headers=None, timeout=8):
+def safe_get(url, extra_headers=None, timeout=10):
     headers = {**BASE_HEADERS, **(extra_headers or {})}
     for attempt in range(3):
         try:
@@ -104,25 +104,30 @@ def add_record(lst, title, url, thumb, source, duration=600):
     if r:
         lst.append(r)
 
+
 # ==================== SCRAPERS ====================
 
 def scrape_eporner(q, page=1):
     records = []
     try:
         url = (f"https://www.eporner.com/api/v2/video/search/?query={requests.utils.quote(q)}"
-               f"&per_page=100&page={page}&format=xml")
+               f"&per_page=100&page={page}&format=xml&thumbsize=big&order=top-rated")
         res = safe_get(url)
         if not res or res.status_code != 200:
             return records
         root = ET.fromstring(res.content)
         for video in root.findall('.//video'):
-            title = (video.find('title').text or '').strip()
+            title_el = video.find('title')
+            url_el = video.find('url')
+            thumb_el = video.find('default_thumb')
+            dur_el = video.find('length_sec')
+            if title_el is None or url_el is None:
+                continue
+            title = (title_el.text or '').strip()
             if not title or any(fw in title.lower() for fw in FORBIDDEN_WORDS):
                 continue
-            vid_url = video.find('url').text or ''
-            thumb = video.find('default_thumb').text or ''
-            length_sec = int(video.find('length_sec').text or 600)
-            add_record(records, title, vid_url, thumb, "Eporner", length_sec)
+            length_sec = int(dur_el.text or 600) if dur_el is not None else 600
+            add_record(records, title, url_el.text or '', (thumb_el.text or '') if thumb_el is not None else '', "Eporner", length_sec)
         print(f"Eporner q={q!r} p={page}: {len(records)} records")
     except Exception as e:
         print(f"Eporner error: {e}")
@@ -136,7 +141,6 @@ def scrape_xhamster(q, page=1):
                f"?query={requests.utils.quote(q)}&page={page}&per_page=32&category=&orientations=straight")
         res = safe_get(url, extra_headers={'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'})
         if not res or res.status_code != 200:
-            print(f"xHamster API q={q!r} p={page}: status {res.status_code if res else 'None'}")
             return results
         data = res.json()
         videos = (data.get('videos') or {}).get('items') or data.get('items') or []
@@ -147,17 +151,17 @@ def scrape_xhamster(q, page=1):
             thumb = (thumbs[0].get('src') or '') if thumbs else (v.get('thumbURL') or v.get('thumbnail') or '')
             duration = v.get('duration') or 600
             add_record(results, title, vid_url, thumb, "xHamster", int(duration))
-        print(f"xHamster API q={q!r} p={page}: {len(results)} items")
+        print(f"xHamster q={q!r} p={page}: {len(results)} items")
     except Exception as e:
-        print(f"xHamster error (q={q!r} p={page}): {e}")
+        print(f"xHamster error: {e}")
     return results
 
 
-def _spankbang_parse_html(html, q, page, label="HTML"):
+def _sb_parse_html(html, q, page, label="HTML"):
+    """Parse SpankBang HTML for video data via JSON blobs or DOM."""
     results = []
     soup = BeautifulSoup(html, 'html.parser')
 
-    # Embedded JSON blobs
     for pattern in [
         r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>',
         r'window\.__DATA__\s*=\s*({.+?});',
@@ -167,13 +171,14 @@ def _spankbang_parse_html(html, q, page, label="HTML"):
         if m:
             try:
                 raw = json.loads(m.group(1))
-                # Drill into Next.js props if needed
                 if 'props' in raw:
                     raw = raw.get('props', {}).get('pageProps', {})
                 for key in ('videos', 'results', 'items', 'searchResults', 'videoList', 'data'):
                     vlist = raw.get(key) or []
                     if isinstance(vlist, dict):
                         vlist = vlist.get('videos') or vlist.get('items') or []
+                    if not isinstance(vlist, list):
+                        continue
                     for v in vlist:
                         title = v.get('title') or v.get('name') or ''
                         vid_url = v.get('url') or v.get('link') or ''
@@ -188,7 +193,6 @@ def _spankbang_parse_html(html, q, page, label="HTML"):
             except:
                 pass
 
-    # Raw JSON array in page source
     m = re.search(r'"videos"\s*:\s*(\[.+?\])', html, re.DOTALL)
     if m:
         try:
@@ -201,21 +205,22 @@ def _spankbang_parse_html(html, q, page, label="HTML"):
                 thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
                 add_record(results, title, vid_url, thumb, "SpankBang")
             if results:
-                print(f"SpankBang {label}/videos[] q={q!r} p={page}: {len(results)} items")
                 return results
         except:
             pass
 
-    # DOM fallback
-    for item in soup.select('li[id^="v"], .video-item, [data-id], .videoblock'):
+    # DOM fallback — SpankBang video items have id like "v-xxxxx"
+    for item in soup.select('li[id^="v-"], div[id^="v-"], .video-item, .videoblock'):
         try:
-            title_el = item.select_one('.n, .title, h3, p.t')
             link_el = item.select_one('a[href]')
+            title_el = item.select_one('.n, .title, h3, p.t, [class*="title"]')
             img_el = item.select_one('img[data-src], img[src]')
-            if not (title_el and link_el):
+            if not (link_el and title_el):
                 continue
             title = safe_get_text(title_el)
             href = link_el.get('href', '')
+            if not href or href in ('/', '#', ''):
+                continue
             full_url = ('https://spankbang.com' + href) if href.startswith('/') else href
             thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
             add_record(results, title, full_url, thumb, "SpankBang")
@@ -226,75 +231,97 @@ def _spankbang_parse_html(html, q, page, label="HTML"):
     return results
 
 
-def scrape_spankbang(q, page=1):
+def scrape_spankbang_bulk(q, pages):
+    """One Playwright browser navigates multiple SpankBang pages sequentially."""
     results = []
     slug = re.sub(r'\s+', '-', q.strip().lower())
-    search_url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{page}/"
 
-    # Strategy 1: Playwright headless (executes JS, bypasses bot detection)
     if PLAYWRIGHT_AVAILABLE:
         try:
             with sync_playwright() as pw:
-                browser = pw.chromium.launch(headless=True, args=['--no-sandbox'])
+                browser = pw.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--no-sandbox',
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-infobars',
+                    ]
+                )
                 ctx = browser.new_context(
                     user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    viewport={'width': 1280, 'height': 800},
+                    viewport={'width': 1280, 'height': 900},
+                    java_script_enabled=True,
                 )
-                captured = []
+                ctx.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
-                def handle_response(resp):
+                for pg in pages:
+                    search_url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{pg}/"
+                    page_captured = []
+
+                    def make_handler(lst):
+                        def handle_response(resp):
+                            try:
+                                if 'spankbang.com' in resp.url and resp.status == 200:
+                                    ct = resp.headers.get('content-type', '')
+                                    if 'json' in ct:
+                                        data = resp.json()
+                                        vlist = data.get('videos') or data.get('results') or data.get('items') or []
+                                        if vlist:
+                                            lst.extend(vlist)
+                            except:
+                                pass
+                        return handle_response
+
+                    page_obj = ctx.new_page()
+                    page_obj.on('response', make_handler(page_captured))
                     try:
-                        if 'spankbang.com' in resp.url and resp.status == 200:
-                            ct = resp.headers.get('content-type', '')
-                            if 'json' in ct:
-                                try:
-                                    data = resp.json()
-                                    vlist = data.get('videos') or data.get('results') or data.get('items') or []
-                                    if vlist:
-                                        captured.extend(vlist)
-                                except:
-                                    pass
+                        page_obj.goto(search_url, wait_until='networkidle', timeout=25000)
                     except:
-                        pass
+                        try:
+                            page_obj.wait_for_timeout(3000)
+                        except:
+                            pass
 
-                page_obj = ctx.new_page()
-                page_obj.on('response', handle_response)
-                page_obj.goto(search_url, wait_until='networkidle', timeout=20000)
+                    if page_captured:
+                        for v in page_captured:
+                            title = v.get('title') or v.get('name') or ''
+                            vid_url = v.get('url') or v.get('link') or ''
+                            if vid_url and not vid_url.startswith('http'):
+                                vid_url = 'https://spankbang.com' + vid_url
+                            thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
+                            dur = int(v.get('duration') or v.get('length') or 600)
+                            add_record(results, title, vid_url, thumb, "SpankBang", dur)
+                        print(f"SpankBang bulk XHR q={q!r} p={pg}: {len(page_captured)} json items")
+                    else:
+                        html = page_obj.content()
+                        page_results = _sb_parse_html(html, q, pg, label=f"bulk-p{pg}")
+                        results.extend(page_results)
 
-                # Parse any XHR-captured JSON
-                for v in captured:
-                    title = v.get('title') or v.get('name') or ''
-                    vid_url = v.get('url') or v.get('link') or ''
-                    if vid_url and not vid_url.startswith('http'):
-                        vid_url = 'https://spankbang.com' + vid_url
-                    thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
-                    dur = int(v.get('duration') or v.get('length') or 600)
-                    add_record(results, title, vid_url, thumb, "SpankBang", dur)
-
-                if not results:
-                    # Fall back to parsing the rendered DOM
-                    html = page_obj.content()
-                    results = _spankbang_parse_html(html, q, page, label="Playwright")
+                    page_obj.close()
 
                 browser.close()
-
-                if results:
-                    print(f"SpankBang Playwright q={q!r} p={page}: {len(results)} items")
-                    return results
         except Exception as e:
             print(f"SpankBang Playwright error: {e}")
+            # HTTP fallback
+            for pg in pages:
+                results.extend(_scrape_spankbang_http(q, pg))
+    else:
+        for pg in pages:
+            results.extend(_scrape_spankbang_http(q, pg))
 
-    # Strategy 2: plain HTTP with mobile UA
-    try:
-        res = safe_get(search_url, extra_headers={
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-        })
-        if res and res.status_code == 200:
-            results = _spankbang_parse_html(res.text, q, page, label="mobile")
-    except Exception as e:
-        print(f"SpankBang mobile error: {e}")
-
+    print(f"SpankBang bulk total q={q!r}: {len(results)} items across {len(pages)} pages")
     return results
+
+
+def _scrape_spankbang_http(q, page):
+    slug = re.sub(r'\s+', '-', q.strip().lower())
+    url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{page}/"
+    res = safe_get(url, extra_headers={
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+    })
+    if res and res.status_code == 200:
+        return _sb_parse_html(res.text, q, page, label="http")
+    return []
 
 
 def scrape_xvideos(q, page=0):
@@ -382,44 +409,6 @@ def scrape_pornhub(q, page=1):
     return results
 
 
-def scrape_camstreams(q, page=1):
-    results = []
-    try:
-        url = f"https://www.camstreams.tv/search/?q={requests.utils.quote(q)}&page={page}"
-        res = safe_get(url)
-        if not res:
-            return results
-        soup = BeautifulSoup(res.text, 'html.parser')
-        raw = soup.select('.video-item, .stream-item, .model-item, .thumb-item')
-        items = [el for el in raw if el.find('img') and el.find('a', href=True)]
-        seen = set()
-        for item in items:
-            try:
-                link_el = item.find('a', href=True)
-                href = link_el.get('href', '') if link_el else ''
-                if not href or href in ('/', '#'):
-                    continue
-                full_url = href if href.startswith('http') else ('https://www.camstreams.tv' + href)
-                if full_url in seen:
-                    continue
-                seen.add(full_url)
-                title = (link_el.get('title') or '').strip()
-                if not title:
-                    title_el = item.select_one('.title, h3, h4, [class*="name"]')
-                    title = safe_get_text(title_el)
-                if not title:
-                    continue
-                img_el = item.find('img')
-                thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
-                add_record(results, title, full_url, thumb, "CamStreams")
-            except:
-                continue
-        print(f"CamStreams q={q!r} p={page}: {len(results)} items")
-    except Exception as e:
-        print(f"CamStreams error: {e}")
-    return results
-
-
 def scrape_beeg(q, page=1):
     results = []
     try:
@@ -450,12 +439,65 @@ def scrape_beeg(q, page=1):
     return results
 
 
+def scrape_camstreams(q, page=1):
+    results = []
+    try:
+        # Try multiple URL patterns
+        for url in [
+            f"https://www.camstreams.tv/search/?q={requests.utils.quote(q)}&page={page}",
+            f"https://www.camstreams.tv/?s={requests.utils.quote(q)}&page={page}",
+        ]:
+            res = safe_get(url)
+            if not res or res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, 'html.parser')
+            # Try multiple selectors
+            candidates = (
+                soup.select('.video-thumb, .video-card, .thumb-block, .model-card, .stream-card') or
+                soup.select('article') or
+                soup.select('[class*="video"], [class*="thumb"], [class*="stream"]')
+            )
+            seen = set()
+            for item in candidates:
+                try:
+                    link_el = item.find('a', href=True)
+                    if not link_el:
+                        continue
+                    href = link_el.get('href', '').strip()
+                    if not href or href in ('/', '#'):
+                        continue
+                    # Skip navigation/header links
+                    if any(x in href for x in ['/category/', '/tag/', '/page/', '?page=']):
+                        continue
+                    full_url = href if href.startswith('http') else ('https://www.camstreams.tv' + href)
+                    if full_url in seen:
+                        continue
+                    seen.add(full_url)
+                    title = (link_el.get('title') or '').strip()
+                    if not title:
+                        title_el = item.select_one('.title, h2, h3, h4, [class*="name"], [class*="title"]')
+                        title = safe_get_text(title_el)
+                    if not title:
+                        continue
+                    img_el = item.find('img')
+                    thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                    add_record(results, title, full_url, thumb, "CamStreams")
+                except:
+                    continue
+            if results:
+                break
+        print(f"CamStreams q={q!r} p={page}: {len(results)} items")
+    except Exception as e:
+        print(f"CamStreams error: {e}")
+    return results
+
+
 # ==================== ORCHESTRATION ====================
 
-SCRAPERS = [
+# All scrapers except SpankBang (handled via bulk)
+SCRAPERS_NO_SB = [
     scrape_eporner,
     scrape_xhamster,
-    scrape_spankbang,
     scrape_xvideos,
     scrape_xnxx,
     scrape_pornhub,
@@ -463,64 +505,34 @@ SCRAPERS = [
     scrape_camstreams,
 ]
 
-def _fan_out(sub_queries, scrape_pages, executor):
-    futures = []
-    for sq in sub_queries:
-        for pg in scrape_pages:
-            for scraper in SCRAPERS:
-                p = pg - 1 if scraper in (scrape_xvideos, scrape_xnxx) else pg
-                futures.append((executor.submit(scraper, sq, p), sq))
-    return futures
 
-
-def _collect(futures):
-    """Collect results, tagging each record with the query that produced it."""
+def _collect(futures_with_sq):
     out = []
-    for f, sq in futures:
+    for f, sq in futures_with_sq:
         try:
-            for r in f.result():
+            for r in f.result(timeout=30):
                 r['_q'] = sq.lower()
                 out.append(r)
-        except:
+        except Exception as e:
             pass
     return out
 
 
-def seed_database():
-    master_db = load_db()
-    existing_urls = {x["url"] for x in master_db if "url" in x}
-    new_records = []
+def _do_scrape(sub_queries, site_pages):
+    """Scrape all sources for given sub_queries across site_pages. Returns new records."""
     with ThreadPoolExecutor(max_workers=14) as executor:
-        futures = _fan_out(DEFAULT_SEED_QUERIES, list(range(1, 4)), executor)
-        for r in _collect(futures):
-            u = r.get("url")
-            if u and u not in existing_urls:
-                new_records.append(r)
-                existing_urls.add(u)
-    if new_records:
-        save_db(master_db + new_records)
-        print(f"Seeded {len(new_records)} new records. Total: {len(master_db) + len(new_records)}")
-    return master_db + new_records
+        futures = []
+        for sq in sub_queries:
+            for pg in site_pages:
+                for scraper in SCRAPERS_NO_SB:
+                    p = pg - 1 if scraper in (scrape_xvideos, scrape_xnxx) else pg
+                    futures.append((executor.submit(scraper, sq, p), sq))
+            # SpankBang bulk: one browser for all pages per sub-query
+            futures.append((executor.submit(scrape_spankbang_bulk, sq, site_pages), sq))
+        return _collect(futures)
 
 
-def run_deep_target_scrape(query, page=1, preferred_source=None):
-    exact = is_exact(query)
-    clean = strip_quotes(query)
-
-    if not exact and "," in clean:
-        sub_queries = [q.strip() for q in clean.split(",") if q.strip()]
-    else:
-        sub_queries = [clean] if clean else DEFAULT_SEED_QUERIES[:3]
-
-    batch_start = (page - 1) * 3 + 1
-    scrape_pages = list(range(batch_start, batch_start + 3))
-
-    with ThreadPoolExecutor(max_workers=14) as executor:
-        futures = _fan_out(sub_queries, scrape_pages, executor)
-        aggregated = _collect(futures)
-
-    # Save new records
-    master_db = load_db()
+def _save_new(aggregated, master_db):
     existing_urls = {x["url"] for x in master_db if "url" in x}
     new_records, seen = [], set()
     for r in aggregated:
@@ -530,25 +542,68 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
             new_records.append(r)
             seen.add(u)
     if new_records:
-        master_db = master_db + new_records
-        save_db(master_db)
+        save_db(master_db + new_records)
+    return new_records
+
+
+def _build_pool(master_db, sub_queries, exact, clean):
+    qs = {sq.lower() for sq in sub_queries}
+    if exact:
+        phrase = clean.lower()
+        return [r for r in master_db if phrase in r.get("title", "").lower()]
+    pool = [r for r in master_db if r.get("_q", "") in qs]
+    return pool
+
+
+def seed_database():
+    master_db = load_db()
+    aggregated = _do_scrape(DEFAULT_SEED_QUERIES[:3], list(range(1, 4)))
+    new_records = _save_new(aggregated, master_db)
+    print(f"Seeded {len(new_records)} new records.")
+    return master_db + new_records
+
+
+def run_deep_target_scrape(query, page=1, preferred_source=None, sort_by='default'):
+    exact = is_exact(query)
+    clean = strip_quotes(query)
+
+    if not exact and "," in clean:
+        sub_queries = [q.strip() for q in clean.split(",") if q.strip()]
+    else:
+        sub_queries = [clean] if clean else DEFAULT_SEED_QUERIES[:3]
 
     page_size = 100
     start = (page - 1) * page_size
+    need_up_to = start + page_size  # need at least this many in pool
 
-    if exact:
-        phrase = clean.lower()
-        pool = [r for r in master_db if phrase in r.get("title", "").lower()]
-    else:
-        # Use query tag to pull only records from this search
-        qs = {sq.lower() for sq in sub_queries}
-        pool = [r for r in master_db if r.get("_q", "") in qs]
-        # If DB has nothing tagged yet (old records), fall back to new_records
+    master_db = load_db()
+    pool = _build_pool(master_db, sub_queries, exact, clean)
+
+    if len(pool) < need_up_to:
+        # Determine next site-pages to scrape (estimate based on pool size)
+        # Each site averages ~20-30 results/page; use pool size to estimate coverage
+        already = max(len(pool) // max(len(sub_queries), 1) // 25, 0)
+        batch_start = already + 1
+        site_pages = list(range(batch_start, batch_start + 10))
+        aggregated = _do_scrape(sub_queries, site_pages)
+        new_records = _save_new(aggregated, master_db)
+        master_db = load_db()
+        pool = _build_pool(master_db, sub_queries, exact, clean)
         if not pool:
             pool = new_records
 
     if preferred_source and preferred_source != "All":
         pool = [r for r in pool if r.get("source", "").lower() == preferred_source.lower()]
+
+    # Sort
+    if sort_by == 'duration_desc':
+        pool = sorted(pool, key=lambda r: r.get('duration', 0), reverse=True)
+    elif sort_by == 'duration_asc':
+        pool = sorted(pool, key=lambda r: r.get('duration', 0))
+    elif sort_by == 'date_desc':
+        pool = sorted(pool, key=lambda r: r.get('added_date', ''), reverse=True)
+    elif sort_by == 'date_asc':
+        pool = sorted(pool, key=lambda r: r.get('added_date', ''))
 
     return pool[start:start + page_size]
 
@@ -563,12 +618,13 @@ def fast_search():
     query = request.args.get("query", "").strip()
     page = int(request.args.get("page", 1))
     preferred_source = request.args.get("source", None)
+    sort_by = request.args.get("sort", "default")
 
     if any(fw in query.lower() for fw in FORBIDDEN_WORDS):
         return jsonify([])
 
     if query:
-        return jsonify(run_deep_target_scrape(query, page=page, preferred_source=preferred_source))
+        return jsonify(run_deep_target_scrape(query, page=page, preferred_source=preferred_source, sort_by=sort_by))
 
     master_db = load_db()
     if len(master_db) < 50:
