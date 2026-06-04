@@ -48,6 +48,10 @@
         .search-box:focus { border-color: var(--accent); }
         .search-btn { padding: 14px 28px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--accent); color: #000; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
         .search-btn:hover { background: #e07226; }
+        .exact-btn { padding: 14px 18px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .exact-btn.active { background: rgba(255,140,58,0.12); color: var(--accent); border-color: var(--accent); }
+        .exact-badge { display: none; font-size: 10px; font-weight: 800; color: var(--accent); background: rgba(255,140,58,0.1); border: 1px solid rgba(255,140,58,0.3); border-radius: 4px; padding: 3px 8px; margin-left: 6px; text-transform: uppercase; letter-spacing: 1px; }
+        .exact-badge.visible { display: inline-block; }
 
         .ticker-container { background: #040407; border: 1px solid var(--border); border-radius: 6px; padding: 8px 16px; overflow: hidden; display: flex; align-items: center; gap: 15px; }
         .ticker-label { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
@@ -96,8 +100,12 @@
         <div class="control-panel-wrapper">
             <div class="control-panel">
                 <div class="search-container">
-                    <input type="text" id="globalSearch" class="search-box" placeholder="Input target cluster profile or key array..." onkeydown="if(event.key === 'Enter') triggerInstantSearch()">
+                    <input type="text" id="globalSearch" class="search-box" placeholder="Search... use &quot;quotes&quot; for exact match" onkeydown="if(event.key === 'Enter') triggerInstantSearch()">
+                    <button id="exactBtn" class="exact-btn" onclick="toggleExactMode()" title="Exact phrase match — wraps query in quotes">&ldquo;&nbsp;EXACT&nbsp;&rdquo;</button>
                     <button class="search-btn" onclick="triggerInstantSearch()">Scan Matrix</button>
+                </div>
+                <div style="padding: 4px 0 0 2px;">
+                    <span class="exact-badge" id="exactBadge">EXACT PHRASE MODE</span>
                 </div>
             </div>
 
@@ -134,6 +142,26 @@
         let blockScrollTrigger = false;
         let completelyExhausted = false;
         let currentActiveMatrixPage = 1;
+        let exactMode = false;
+
+        function toggleExactMode() {
+            exactMode = !exactMode;
+            document.getElementById('exactBtn').classList.toggle('active', exactMode);
+            document.getElementById('exactBadge').classList.toggle('visible', exactMode);
+            // Wrap/unwrap current query value
+            const box = document.getElementById('globalSearch');
+            let val = box.value.trim().replace(/^["']|["']$/g, '');
+            box.value = exactMode ? `"${val}"` : val;
+        }
+
+        function getSearchQuery() {
+            const raw = document.getElementById('globalSearch').value.trim();
+            const hasQuotes = (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"));
+            exactMode = hasQuotes;
+            document.getElementById('exactBtn').classList.toggle('active', exactMode);
+            document.getElementById('exactBadge').classList.toggle('visible', exactMode);
+            return raw;
+        }
 
         const FORBIDDEN_CHECK = ["feet", "foot", "toes", "footjob", "shrimping", "oralfoot"];
 
@@ -164,8 +192,7 @@
         function triggerInstantSearch() {
             currentActiveMatrixPage = 1;
             updateTabHighlightStates();
-            const query = document.getElementById('globalSearch').value.trim();
-            executeSearchStream(query, true);
+            executeSearchStream(getSearchQuery(), true);
         }
 
         function switchMatrixPage(pageNumber) {
@@ -311,7 +338,7 @@
         window.addEventListener('scroll', () => {
             if (blockScrollTrigger || completelyExhausted) return;
             if ((window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 300) {
-                const currentQuery = document.getElementById('globalSearch').value.trim();
+                const currentQuery = getSearchQuery();
                 document.getElementById('scrollStatus').textContent = `PAGINATING SYSTEM REQ: LOADING PAGE ${activePageCursor}...`;
                 executeSearchStream(currentQuery, false);
             }
