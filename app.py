@@ -104,33 +104,77 @@ def add_record(lst, title, url, thumb, source, duration=600):
 # ==================== SCRAPERS ====================
 
 def scrape_spankbang(q, page=1):
+    """SpankBang via their internal search API (avoids bot detection on HTML pages)."""
     results = []
     try:
-        # SpankBang search: spaces become hyphens in path
+        params = {
+            'q': q,
+            'page': page,
+            'per_page': 30,
+        }
+        # SpankBang exposes a JSON search endpoint used by their own frontend
+        url = "https://spankbang.com/api/search/"
+        headers = {**HEADERS, 'X-Requested-With': 'XMLHttpRequest', 'Referer': 'https://spankbang.com/'}
+        res = requests.get(url, params=params, headers=headers, timeout=6)
+        print(f"SpankBang API q={q!r} p={page}: status {res.status_code}")
+        if res.status_code == 200:
+            data = res.json()
+            videos = data.get('videos') or data.get('results') or data.get('items') or []
+            for v in videos:
+                title = v.get('title') or v.get('name') or ''
+                vid_url = v.get('url') or v.get('link') or ''
+                if vid_url and not vid_url.startswith('http'):
+                    vid_url = 'https://spankbang.com' + vid_url
+                thumb = v.get('thumbnail') or v.get('thumb') or v.get('image') or ''
+                duration = v.get('duration') or v.get('length') or 600
+                add_record(results, title, vid_url, thumb, "SpankBang", int(duration))
+            if not results:
+                # Fallback: HTML parse
+                results = _scrape_spankbang_html(q, page)
+        else:
+            results = _scrape_spankbang_html(q, page)
+    except Exception as e:
+        print(f"SpankBang error (q={q!r} p={page}): {e}")
+        results = _scrape_spankbang_html(q, page)
+    return results
+
+def _scrape_spankbang_html(q, page=1):
+    results = []
+    try:
         slug = re.sub(r'\s+', '-', q.strip().lower())
-        slug = requests.utils.quote(slug, safe='-')
-        url = f"https://spankbang.com/s/{slug}/{page}/"
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{page}/"
+        res = requests.get(url, headers=HEADERS, timeout=6)
         soup = BeautifulSoup(res.text, 'html.parser')
-        items = soup.select('.video-item, [data-video-id], .stream-item, li[id^="v-"], .thumb')
-        print(f"SpankBang q={q!r} p={page}: {len(items)} items (status {res.status_code}), url={url}")
+        # Extract from embedded JS data if present
+        m = re.search(r'var\s+videos\s*=\s*(\[.*?\]);', res.text, re.DOTALL)
+        if m:
+            try:
+                videos = json.loads(m.group(1))
+                for v in videos:
+                    title = v.get('title', '')
+                    vid_url = 'https://spankbang.com' + v.get('url', '')
+                    thumb = v.get('poster') or v.get('thumb') or ''
+                    add_record(results, title, vid_url, thumb, "SpankBang", v.get('duration', 600))
+                return results
+            except:
+                pass
+        items = soup.select('.video-item, [data-id], li[id^="v"]')
+        print(f"SpankBang HTML q={q!r} p={page}: {len(items)} items")
         for item in items:
             try:
-                title_el = item.select_one('.n, .title, [class*="title"]')
-                link_el = item.select_one('a[href*="/"]')
+                title_el = item.select_one('.n, .title')
+                link_el = item.select_one('a[href]')
                 img_el = item.select_one('img[data-src], img[src]')
-                if not title_el or not link_el:
+                if not (title_el and link_el):
                     continue
                 thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
-                dur_el = item.select_one('.l, .dur, .video-duration, [class*="duration"]')
-                duration = parse_duration(safe_get_text(dur_el)) if dur_el else 600
                 href = link_el.get('href', '')
-                full_url = ("https://spankbang.com" + href) if href.startswith('/') else href
-                add_record(results, safe_get_text(title_el), full_url, thumb, "SpankBang", duration)
+                full_url = ('https://spankbang.com' + href) if href.startswith('/') else href
+                add_record(results, safe_get_text(title_el), full_url, thumb, "SpankBang")
             except:
                 continue
     except Exception as e:
-        print(f"SpankBang error (q={q!r} p={page}): {e}")
+        print(f"SpankBang HTML error: {e}")
     return results
 
 
@@ -139,7 +183,7 @@ def scrape_camstreams(q, page=1):
     results = []
     try:
         url = f"https://www.camstreams.tv/search/?q={requests.utils.quote(q)}&page={page}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        res = requests.get(url, headers=HEADERS, timeout=5)
         soup = BeautifulSoup(res.text, 'html.parser')
         # Try multiple possible container selectors
         items = soup.select('.video-item, .thumb, .model-item, article, .stream-item, [class*="video"], [class*="thumb"]')
@@ -169,7 +213,7 @@ def scrape_xhamster(q, page=1):
     results = []
     try:
         url = f"https://xhamster.com/search/{requests.utils.quote(q)}?page={page}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        res = requests.get(url, headers=HEADERS, timeout=5)
         html = res.text
 
         # xHamster embeds video data as JSON in a script tag
@@ -218,7 +262,7 @@ def scrape_xvideos(q, page=0):
     results = []
     try:
         url = f"https://www.xvideos.com/?k={requests.utils.quote(q)}&p={page}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        res = requests.get(url, headers=HEADERS, timeout=5)
         soup = BeautifulSoup(res.text, 'html.parser')
         for item in soup.select('.thumb-block'):
             try:
@@ -244,7 +288,7 @@ def scrape_xnxx(q, page=0):
     results = []
     try:
         url = f"https://www.xnxx.com/search/{requests.utils.quote(q)}/{page}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        res = requests.get(url, headers=HEADERS, timeout=5)
         soup = BeautifulSoup(res.text, 'html.parser')
         for item in soup.select('.thumb-block, .mozaique .thumb'):
             try:
@@ -268,7 +312,7 @@ def scrape_pornhub(q, page=1):
     results = []
     try:
         url = f"https://www.pornhub.com/video/search?search={requests.utils.quote(q)}&p={page}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        res = requests.get(url, headers=HEADERS, timeout=5)
         soup = BeautifulSoup(res.text, 'html.parser')
         for item in soup.select('li.pcVideoListItem, .videoBox'):
             try:
@@ -296,7 +340,7 @@ def scrape_beeg(q, page=1):
     results = []
     try:
         url = f"https://beeg.com/search/{requests.utils.quote(q)}/{page}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        res = requests.get(url, headers=HEADERS, timeout=5)
         soup = BeautifulSoup(res.text, 'html.parser')
         for item in soup.select('.thumb, article.video-item'):
             try:
@@ -325,7 +369,7 @@ def run_single_scrape(clean_q, page=1):
     url = f"https://www.eporner.com/api/v2/video/search/?query={encoded}&per_page=100&page={page}&format=xml"
     records = []
     try:
-        res = requests.get(url, headers=headers, timeout=10)
+        res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             root = ET.fromstring(res.content)
             for video in root.findall('.//video'):
@@ -394,8 +438,8 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         sub_queries = [clean] if clean else DEFAULT_SEED_QUERIES[:3]
 
     aggregated = []
-    # Fetch 15 pages per scraper per call — at ~20-30 results/page that's 300-450 from SpankBang alone
-    scrape_pages = list(range(page, page + 15))
+    # 5 pages per scraper per call, all parallel — fast enough and still deep
+    scrape_pages = list(range(page, page + 5))
 
     with ThreadPoolExecutor(max_workers=64) as executor:
         futures = _fan_out(sub_queries, scrape_pages, executor)
