@@ -496,6 +496,429 @@ def scrape_camstreams(q, page=1):
     return results
 
 
+
+def _generic_scrape(q, page, base_url, search_url, source, item_sel, title_sel, link_sel, img_sel, dur_sel=None):
+    """Shared HTML scraper for sites with standard grid layouts."""
+    results = []
+    try:
+        res = safe_get(search_url)
+        if not res or res.status_code != 200:
+            return results
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for item in soup.select(item_sel):
+            try:
+                title_el = item.select_one(title_sel) if title_sel else None
+                link_el = item.select_one(link_sel) if link_sel else item.select_one('a[href]')
+                img_el = item.select_one(img_sel) if img_sel else item.select_one('img')
+                if not link_el:
+                    continue
+                title = safe_get_text(title_el) if title_el else (link_el.get('title') or '').strip()
+                if not title:
+                    continue
+                href = link_el.get('href', '')
+                full_url = (base_url + href) if (href.startswith('/') and base_url) else href
+                if not full_url.startswith('http'):
+                    continue
+                thumb = ''
+                if img_el:
+                    thumb = img_el.get('data-src') or img_el.get('data-original') or img_el.get('src') or ''
+                dur = 600
+                if dur_sel:
+                    dur_el = item.select_one(dur_sel)
+                    if dur_el:
+                        dur = parse_duration(safe_get_text(dur_el))
+                add_record(results, title, full_url, thumb, source, dur)
+            except:
+                continue
+        print(f"{source} q={q!r} p={page}: {len(results)} items")
+    except Exception as e:
+        print(f"{source} error: {e}")
+    return results
+
+
+def scrape_redtube(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.redtube.com',
+        f'https://www.redtube.com/?search={requests.utils.quote(q)}&page={page}',
+        'RedTube',
+        '.video_link, .videoblock, li.pcVideoListItem',
+        '.title a, .video-title a, span.title',
+        'a[href*="/"]',
+        'img[data-src], img[src]',
+        '.duration, .video-duration')
+
+def scrape_youporn(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.youporn.com',
+        f'https://www.youporn.com/search/videos/?search={requests.utils.quote(q)}&page={page}',
+        'YouPorn',
+        '.video-box, .videoBox, li.pcVideoListItem',
+        '.title a, span.title a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_tube8(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.tube8.com',
+        f'https://www.tube8.com/search/?q={requests.utils.quote(q)}&page={page}',
+        'Tube8',
+        '.videoBox, li.pcVideoListItem, .video-box',
+        '.title a, span.title a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_hqporner(q, page=1):
+    return _generic_scrape(q, page,
+        'https://hqporner.com',
+        f'https://hqporner.com/?q={requests.utils.quote(q)}&p={page}',
+        'HQporner',
+        '.col-6, .video-item, article',
+        'h3 a, h2 a, .title a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration, .video-duration')
+
+def scrape_txxx(q, page=1):
+    return _generic_scrape(q, page,
+        'https://txxx.com',
+        f'https://txxx.com/search/?q={requests.utils.quote(q)}&page={page}',
+        'TXXX',
+        '.item, .thumb, .video-item',
+        '.title, h3, .video-title',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_drtuber(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.drtuber.com',
+        f'https://www.drtuber.com/video/search?q={requests.utils.quote(q)}&p={page}',
+        'DrTuber',
+        '.video_item, .thumb_item, li.item',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_tnaflix(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.tnaflix.com',
+        f'https://www.tnaflix.com/search?what={requests.utils.quote(q)}&page={page}',
+        'TNAFlix',
+        '.videoWrapper, .thumb, .video-item',
+        '.title a, h3 a, .videoTitle',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_anysex(q, page=1):
+    return _generic_scrape(q, page,
+        'https://anysex.com',
+        f'https://anysex.com/?q={requests.utils.quote(q)}&page={page}',
+        'AnySex',
+        '.item, .thumb, .videoblock',
+        '.title, h3, .video-title',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_perfectgirls(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.perfectgirls.net',
+        f'https://www.perfectgirls.net/?q={requests.utils.quote(q)}&page={page}',
+        'Perfect Girls',
+        '.item, .thumb, .video_item',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_porndoe(q, page=1):
+    return _generic_scrape(q, page,
+        'https://porndoe.com',
+        f'https://porndoe.com/search?q={requests.utils.quote(q)}&page={page}',
+        'PornDoe',
+        '.video-item, .thumb, article',
+        '.title a, h3 a, .video-title',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_xfreehd(q, page=1):
+    return _generic_scrape(q, page,
+        'https://xfreehd.com',
+        f'https://xfreehd.com/search/{requests.utils.quote(q)}/{page}/',
+        'XFreeHD',
+        '.video-item, .thumb_item, .item',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_fullporner(q, page=1):
+    return _generic_scrape(q, page,
+        'https://fullporner.com',
+        f'https://fullporner.com/?q={requests.utils.quote(q)}&p={page}',
+        'FullPorner',
+        '.col-6, .video-item, .item',
+        'h3 a, h2 a, .title a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_porn300(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.porn300.com',
+        f'https://www.porn300.com/search/?q={requests.utils.quote(q)}&p={page}',
+        'Porn300',
+        '.thumb, .video-item, .item',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_pornobaee(q, page=1):
+    return _generic_scrape(q, page,
+        'https://pornobae.com',
+        f'https://pornobae.com/search/{requests.utils.quote(q)}/{page}/',
+        'PornoBae',
+        '.video-item, .thumb, .item',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_letsjerk(q, page=1):
+    return _generic_scrape(q, page,
+        'https://letsjerk.tv',
+        f'https://letsjerk.tv/search/{requests.utils.quote(q)}/{page}/',
+        'LetsJerk',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_pornhat(q, page=1):
+    return _generic_scrape(q, page,
+        'https://pornhat.com',
+        f'https://pornhat.com/search/{requests.utils.quote(q)}/{page}/',
+        'PornHat',
+        '.video-item, .item, .thumb',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_netfapx(q, page=1):
+    return _generic_scrape(q, page,
+        'https://netfapx.com',
+        f'https://netfapx.com/search/{requests.utils.quote(q)}/{page}/',
+        'NetFapX',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_inporn(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.inporn.com',
+        f'https://www.inporn.com/search/?q={requests.utils.quote(q)}&page={page}',
+        'InPorn',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+def scrape_txxx_style(name, base, search_tpl, q, page):
+    """Shared scraper for TXXX-family sites (txxx, tubepornclassic, etc)."""
+    return _generic_scrape(q, page, base,
+        search_tpl.format(q=requests.utils.quote(q), page=page),
+        name,
+        '.item, .thumb, .video_item',
+        '.title, h3, .video-title',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_porndig(q, page=1):
+    return _generic_scrape(q, page,
+        'https://porndig.com',
+        f'https://porndig.com/search?q={requests.utils.quote(q)}&page={page}',
+        'PornDig',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_pornhoarder(q, page=1):
+    return _generic_scrape(q, page,
+        'https://pornhoarder.tv',
+        f'https://pornhoarder.tv/search/{requests.utils.quote(q)}/{page}/',
+        'PornHoarder',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_pussyspace(q, page=1):
+    return _generic_scrape(q, page,
+        'https://pussyspace.com',
+        f'https://pussyspace.com/search/{requests.utils.quote(q)}/{page}/',
+        'PussySpace',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_xmoviesforyou(q, page=1):
+    return _generic_scrape(q, page,
+        'https://xmoviesforyou.com',
+        f'https://xmoviesforyou.com/search/{requests.utils.quote(q)}/{page}/',
+        'XMoviesForYou',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_porntop(q, page=1):
+    return _generic_scrape(q, page,
+        'https://porntop.com',
+        f'https://porntop.com/search/{requests.utils.quote(q)}/{page}/',
+        'PornTop',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_pornxp(q, page=1):
+    return _generic_scrape(q, page,
+        'https://pornxp.com',
+        f'https://pornxp.com/search/{requests.utils.quote(q)}/{page}/',
+        'PornXP',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_porn00(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.porn00.org',
+        f'https://www.porn00.org/search/{requests.utils.quote(q)}/{page}/',
+        'Porn00',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_freeo(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.freeomovie.to',
+        f'https://www.freeomovie.to/search/{requests.utils.quote(q)}/{page}/',
+        'FreeoMovie',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_whoreshub(q, page=1):
+    return _generic_scrape(q, page,
+        'https://whoreshub.com',
+        f'https://whoreshub.com/search/{requests.utils.quote(q)}/{page}/',
+        'WhoresHub',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_porntex(q, page=1):
+    return _generic_scrape(q, page,
+        'https://www.porntex.com',
+        f'https://www.porntex.com/search/?q={requests.utils.quote(q)}&p={page}',
+        'PornTrex',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_4kporn(q, page=1):
+    return _generic_scrape(q, page,
+        'https://4kporn.xxx',
+        f'https://4kporn.xxx/search/{requests.utils.quote(q)}/{page}/',
+        '4kPorn',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_yourporn(q, page=1):
+    return _generic_scrape(q, page,
+        'https://yourporn.sexy',
+        f'https://yourporn.sexy/search/?q={requests.utils.quote(q)}&page={page}',
+        'YourPorn',
+        '.item, .video-item, .thumb, .post',
+        '.title a, h3 a, a[title]',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_xxxfiles(q, page=1):
+    return _generic_scrape(q, page,
+        'https://xxxfiles.com',
+        f'https://xxxfiles.com/search/{requests.utils.quote(q)}/{page}/',
+        'XXXFiles',
+        '.item, .video-item, .thumb',
+        '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_erome(q, page=1):
+    results = []
+    try:
+        url = f"https://www.erome.com/search?q={requests.utils.quote(q)}&page={page}"
+        res = safe_get(url, extra_headers={'Accept': 'text/html'})
+        if not res or res.status_code != 200:
+            return results
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for item in soup.select('.album-link, .album, [class*="album"]'):
+            try:
+                link_el = item if item.name == 'a' else item.select_one('a[href]')
+                if not link_el:
+                    continue
+                href = link_el.get('href', '')
+                full_url = ('https://www.erome.com' + href) if href.startswith('/') else href
+                title_el = item.select_one('p, .title, h3')
+                title = safe_get_text(title_el) or link_el.get('title', '')
+                if not title:
+                    continue
+                img_el = item.select_one('img')
+                thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                add_record(results, title, full_url, thumb, "EroMe")
+            except:
+                continue
+        print(f"EroMe q={q!r} p={page}: {len(results)} items")
+    except Exception as e:
+        print(f"EroMe error: {e}")
+    return results
+
+def scrape_motherless(q, page=1):
+    results = []
+    try:
+        url = f"https://motherless.com/gv/straight?search_term={requests.utils.quote(q)}&page={page}"
+        res = safe_get(url)
+        if not res or res.status_code != 200:
+            return results
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for item in soup.select('.thumb-container, .video-thumb'):
+            try:
+                link_el = item.select_one('a[href*="/"]')
+                title_el = item.select_one('.filename, .title, span')
+                img_el = item.select_one('img')
+                if not link_el:
+                    continue
+                title = safe_get_text(title_el) or link_el.get('title', '')
+                if not title:
+                    continue
+                href = link_el.get('href', '')
+                full_url = ('https://motherless.com' + href) if href.startswith('/') else href
+                thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                add_record(results, title, full_url, thumb, "Motherless")
+            except:
+                continue
+        print(f"Motherless q={q!r} p={page}: {len(results)} items")
+    except Exception as e:
+        print(f"Motherless error: {e}")
+    return results
+
+
 # ==================== ORCHESTRATION ====================
 
 # All scrapers except SpankBang (handled via bulk)
@@ -507,6 +930,39 @@ SCRAPERS_NO_SB = [
     scrape_pornhub,
     scrape_beeg,
     scrape_camstreams,
+    scrape_redtube,
+    scrape_youporn,
+    scrape_tube8,
+    scrape_hqporner,
+    scrape_txxx,
+    scrape_drtuber,
+    scrape_tnaflix,
+    scrape_anysex,
+    scrape_perfectgirls,
+    scrape_porndoe,
+    scrape_xfreehd,
+    scrape_fullporner,
+    scrape_porn300,
+    scrape_pornobaee,
+    scrape_letsjerk,
+    scrape_pornhat,
+    scrape_netfapx,
+    scrape_inporn,
+    scrape_porndig,
+    scrape_pornhoarder,
+    scrape_pussyspace,
+    scrape_xmoviesforyou,
+    scrape_porntop,
+    scrape_pornxp,
+    scrape_porn00,
+    scrape_freeo,
+    scrape_whoreshub,
+    scrape_porntex,
+    scrape_4kporn,
+    scrape_yourporn,
+    scrape_xxxfiles,
+    scrape_erome,
+    scrape_motherless,
 ]
 
 
@@ -524,7 +980,7 @@ def _collect(futures_with_sq):
 
 def _do_scrape(sub_queries, site_pages):
     """Scrape all sources for given sub_queries across site_pages. Returns new records."""
-    with ThreadPoolExecutor(max_workers=14) as executor:
+    with ThreadPoolExecutor(max_workers=32) as executor:
         futures = []
         for sq in sub_queries:
             for pg in site_pages:
