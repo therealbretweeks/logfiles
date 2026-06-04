@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PENTHOUSE INTERACTIVE DESKTOP</title>
+    <style>
+        :root {
+            --bg-base: #020204;
+            --bg-surface: #07070a;
+            --bg-card: #0f0f14;
+            --accent: #ff8c3a;
+            --accent-glow: rgba(255,140,58,0.2);
+            --text-main: #f0f0f5;
+            --text-muted: #5a5a66;
+            --border: #151520;
+        }
+
+        body { 
+            background: var(--bg-base); color: var(--text-main); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            padding: 0; margin: 0; display: flex; min-height: 100vh;
+        }
+
+        .main-content { flex-grow: 1; padding: 30px; max-width: calc(100% - 320px); margin-right: 320px; }
+        .right-sidebar { width: 290px; background: var(--bg-surface); border-left: 1px solid var(--border); padding: 24px 15px; overflow-y: auto; height: 100vh; position: fixed; right: 0; top: 0; z-index: 100; }
+        .right-sidebar h4 { margin: 0 0 15px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
+        .sidebar-list { list-style: none; padding: 0; margin: 0; }
+        .sidebar-list li { padding: 9px 11px; font-size: 11.5px; color: var(--text-muted); border-bottom: 1px solid rgba(21, 21, 32, 0.5); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s; }
+        .sidebar-list li:hover { color: var(--accent); background: rgba(255,140,58,0.03); }
+        .sidebar-list li.active-tube { color: #fff; font-weight: bold; background: rgba(255,140,58,0.08); border-radius: 4px; border-left: 2px solid var(--accent); }
+        .counter-badge { font-size: 10px; background: var(--bg-card); padding: 2px 6px; border-radius: 8px; color: var(--text-muted); border: 1px solid var(--border); font-weight: bold; }
+        .active-tube .counter-badge { color: var(--accent); border-color: rgba(255,140,58,0.3); }
+
+        .banner-link { display: inline-block; width: 100%; text-align: center; text-decoration: none; color: var(--accent); cursor: pointer; user-select: none; transition: transform 0.15s ease; }
+        .banner-link:hover { transform: scale(1.01); }
+        .banner-link h1 { font-size: 40px; letter-spacing: 7px; font-weight: 900; margin: 10px 0 2px; text-shadow: 0 0 12px var(--accent-glow); }
+        p.subtitle { text-align: center; color: var(--text-muted); margin-bottom: 25px; font-size: 11px; text-transform: uppercase; letter-spacing: 4px; }
+        
+        .matrix-nav { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; }
+        .nav-tab { padding: 10px 20px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.2s ease; }
+        .nav-tab:hover { border-color: var(--accent); color: var(--text-main); }
+        .nav-tab.active-tab { background: rgba(255,140,58,0.1); border-color: var(--accent); color: #fff; box-shadow: 0 0 10px var(--accent-glow); }
+
+        .control-panel-wrapper { display: flex; flex-direction: column; gap: 10px; margin-bottom: 30px; }
+        .control-panel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+        .search-container { display: flex; gap: 10px; align-items: center; width: 100%; }
+        .search-box { padding: 14px 18px; font-size: 13.5px; border-radius: 8px; flex-grow: 1; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); outline: none; }
+        .search-box:focus { border-color: var(--accent); }
+        .search-btn { padding: 14px 28px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--accent); color: #000; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        .search-btn:hover { background: #e07226; }
+
+        .ticker-container { background: #040407; border: 1px solid var(--border); border-radius: 6px; padding: 8px 16px; overflow: hidden; display: flex; align-items: center; gap: 15px; }
+        .ticker-label { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+        .ticker-window { overflow: hidden; width: 100%; position: relative; display: flex; }
+        .ticker-track { display: flex; gap: 25px; animation: scrollTicker 60s linear infinite; }
+        .ticker-track:hover { animation-play-state: paused; }
+        .ticker-item { font-size: 11px; color: var(--text-muted); white-space: nowrap; cursor: pointer; font-weight: 600; padding: 4px 10px; background: rgba(255,255,255,0.02); border: 1px solid #101018; border-radius: 4px; }
+        .ticker-item:hover { color: var(--accent); border-color: rgba(255,140,58,0.2); background: rgba(255,140,58,0.04); }
+
+        @keyframes scrollTicker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-33.333%); }
+        }
+
+        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        .card { background: var(--bg-card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); border-color: #333344; }
+        .media-container { width: 100%; height: 165px; position: relative; background: #000; }
+        .media-container img { width: 100%; height: 100%; object-fit: cover; }
+        .trt-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 3px; }
+        .card h3 { margin: 14px 14px 6px; font-size: 13.5px; line-height: 1.4; flex-grow: 1; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .card h3 a { color: var(--text-main); text-decoration: none; }
+        .card h3 a:hover { color: var(--accent); }
+        .card-footer { padding: 0 14px 14px; display: flex; justify-content: space-between; align-items: center; }
+        .source-tag { font-size: 10px; font-weight: 700; color: var(--accent); background: rgba(255,140,58,0.05); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,140,58,0.1); cursor: pointer; }
+        .date-tag { font-size: 11px; color: var(--text-muted); }
+
+        .scroll-indicator { grid-column: 1 / -1; text-align: center; padding: 30px; font-size: 12px; color: var(--text-muted); font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+    <div class="main-content">
+        <a class="banner-link" onclick="switchMatrixPage(1)">
+            <h1>PENTHOUSE</h1>
+        </a>
+        <p class="subtitle">Multi-Source Cross System Matrix</p>
+
+        <div class="matrix-nav">
+            <div id="tab-page-1" class="nav-tab active-tab" onclick="switchMatrixPage(1)">Matrix Home</div>
+            <div id="tab-page-2" class="nav-tab" onclick="switchMatrixPage(2)">Classic Stars</div>
+            <div id="tab-page-3" class="nav-tab" onclick="switchMatrixPage(3)">Modern Legends</div>
+            <div id="tab-page-4" class="nav-tab" onclick="switchMatrixPage(4)">Brooke Marie</div>
+        </div>
+
+        <div class="control-panel-wrapper">
+            <div class="control-panel">
+                <div class="search-container">
+                    <input type="text" id="globalSearch" class="search-box" placeholder="Input target cluster profile or key array..." onkeydown="if(event.key === 'Enter') triggerInstantSearch()">
+                    <button class="search-btn" onclick="triggerInstantSearch()">Scan Matrix</button>
+                </div>
+            </div>
+
+            <div class="ticker-container">
+                <div class="ticker-label">Matrix Streams:</div>
+                <div class="ticker-window">
+                    <div class="ticker-track" id="tickerTrack"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="gallery" id="gallery"></div>
+        <div class="scroll-indicator" id="scrollStatus">Scroll down to load more content</div>
+    </div>
+
+    <div class="right-sidebar">
+        <h4>All Network Destinations</h4>
+        <ul class="sidebar-list" id="sidebarNetworkContainer">
+            <li id="all-tubes-btn" class="active-tube" onclick="filterByActiveSite('All')">
+                <span>ALL DISCOVERED TRACKS</span> <span class="counter-badge" id="total-count-badge">0</span>
+            </li>
+            {% for network in networks %}
+                <li id="sidebar-node-{{ loop.index }}" onclick="filterByActiveSite('{{ network }}')">
+                    <span>{{ network }}</span> <span class="counter-badge" id="badge-{{ network | replace('/', '-') | replace('.', '-') | replace(' ', '-') }}">0</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+        let visualRegistryPool = [];
+        let chosenSiteFilter = "All";
+        let activePageCursor = 1;
+        let blockScrollTrigger = false;
+        let completelyExhausted = false;
+        let currentActiveMatrixPage = 1;
+
+        const FORBIDDEN_CHECK = ["feet", "foot", "toes", "footjob", "shrimping", "oralfoot"];
+
+        const TICKER_TARGET_PHRASES = [
+            "daddy kink", "stepdaughter joi", "taboo daddy daughter joi", 
+            "daddy's little accomplice", "stepdaughter helps daddy cum", 
+            "daddy makes stepdaughter say pussy", "taboo stepfamily secret joi",
+            "daddy's girl dirty talk joi", "stepfamily joi daddy", "ddlg little space",
+            "stepdad fantasy", "daddy controls my orgasm", "our taboo secret",
+            "adult little girl", "stepdaughter pussy joi", "caregiver little"
+        ];
+
+        function initTickerTrack() {
+            const track = document.getElementById('tickerTrack');
+            const dynamicSet = [...TICKER_TARGET_PHRASES, ...TICKER_TARGET_PHRASES, ...TICKER_TARGET_PHRASES];
+            track.innerHTML = dynamicSet.map(term => `
+                <span class="ticker-item" onclick="applyTicker('${term}')">${term.toUpperCase()}</span>
+            `).join('');
+        }
+
+        function applyTicker(val) {
+            currentActiveMatrixPage = 1;
+            updateTabHighlightStates();
+            document.getElementById('globalSearch').value = val;
+            executeSearchStream(val, true);
+        }
+
+        function triggerInstantSearch() {
+            currentActiveMatrixPage = 1;
+            updateTabHighlightStates();
+            const query = document.getElementById('globalSearch').value.trim();
+            executeSearchStream(query, true);
+        }
+
+        function switchMatrixPage(pageNumber) {
+            currentActiveMatrixPage = pageNumber;
+            updateTabHighlightStates();
+            
+            let targetQuery = "";
+            if (pageNumber === 2) {
+                targetQuery = "ginger lynn, christy canyon, lacey rose, kasey kox";
+            } else if (pageNumber === 3) {
+                targetQuery = "bree olsen, riley reid";
+            } else if (pageNumber === 4) {
+                targetQuery = "brooke marie";
+            }
+            
+            document.getElementById('globalSearch').value = targetQuery;
+            executeSearchStream(targetQuery, true);
+        }
+
+        function updateTabHighlightStates() {
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active-tab'));
+            const activeTab = document.getElementById(`tab-page-${currentActiveMatrixPage}`);
+            if (activeTab) activeTab.classList.add('active-tab');
+        }
+
+        async function executeSearchStream(query, flushExisting = false) {
+            if (flushExisting) {
+                activePageCursor = 1;
+                visualRegistryPool = [];
+                completelyExhausted = false;
+                document.getElementById('gallery').innerHTML = '';
+                document.getElementById('scrollStatus').textContent = 'Loading...';
+            }
+
+            if (FORBIDDEN_CHECK.some(t => query.toLowerCase().includes(t))) {
+                document.getElementById('globalSearch').value = '';
+                return;
+            }
+
+            blockScrollTrigger = true;
+
+            try {
+                let url = `/fast_search?query=${encodeURIComponent(query)}&page=${activePageCursor}`;
+
+                if (chosenSiteFilter && chosenSiteFilter !== "All") {
+                    url += `&source=${encodeURIComponent(chosenSiteFilter)}`;
+                }
+
+                const res = await fetch(url);
+                const incomingBatch = await res.json();
+
+                if (!Array.isArray(incomingBatch) || incomingBatch.length === 0) {
+                    completelyExhausted = true;
+                    document.getElementById('scrollStatus').textContent = 'END OF RESULTS';
+                    if (visualRegistryPool.length === 0) {
+                        document.getElementById('gallery').innerHTML = 
+                            '<p style="text-align:center; color:var(--text-muted); grid-column:1/-1; padding:60px;">No results found.</p>';
+                    }
+                    blockScrollTrigger = false;
+                    updateSidebarCounters();
+                    return;
+                }
+
+                visualRegistryPool = [...visualRegistryPool, ...incomingBatch];
+                updateSidebarCounters();
+                appendItemsToGrid(incomingBatch);
+                
+                activePageCursor++;
+                blockScrollTrigger = false;
+                document.getElementById('scrollStatus').textContent = 'Scroll down to load more content';
+            } catch (err) {
+                console.error(err);
+                document.getElementById('scrollStatus').textContent = 'Error loading results';
+                blockScrollTrigger = false;
+            }
+        }
+
+        function updateSidebarCounters() {
+            let distribution = {};
+            let totalCount = 0;
+
+            visualRegistryPool.forEach(item => {
+                totalCount++;
+                distribution[item.source] = (distribution[item.source] || 0) + 1;
+            });
+
+            document.getElementById('total-count-badge').textContent = totalCount;
+            const listItems = document.querySelectorAll('.sidebar-list li:not(#all-tubes-btn)');
+            listItems.forEach(li => {
+                const badge = li.querySelector('.counter-badge');
+                const site = li.querySelector('span').textContent.trim();
+                badge.textContent = distribution[site] || 0;
+            });
+        }
+
+        function filterByActiveSite(siteName) {
+            chosenSiteFilter = siteName;
+            const elements = document.querySelectorAll('.sidebar-list li');
+            elements.forEach(el => {
+                el.classList.remove('active-tube');
+                let innerTitle = el.querySelector('span').textContent.trim().toLowerCase();
+                if(innerTitle === siteName.toLowerCase() || (siteName === "All" && innerTitle === "all discovered tracks")) {
+                    el.classList.add('active-tube');
+                }
+            });
+            
+            document.getElementById('gallery').innerHTML = '';
+            appendItemsToGrid(visualRegistryPool);
+        }
+
+        function appendItemsToGrid(items) {
+            const gallery = document.getElementById('gallery');
+            let targetItems = items.filter(v => {
+                if (chosenSiteFilter === "All") return true;
+                return v.source.toLowerCase() === chosenSiteFilter.toLowerCase();
+            });
+
+            targetItems.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="media-container">
+                        <img src="${v.thumb}" alt="" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400';">
+                        <div class="trt-badge">${formatTime(v.duration)}</div>
+                    </div>
+                    <h3><a href="${v.url}" target="_blank">${v.title}</a></h3>
+                    <div class="card-footer">
+                        <span class="source-tag" onclick="event.stopPropagation(); filterByActiveSite('${v.source}')">${v.source}</span>
+                        <span class="date-tag">Live Feed</span>
+                    </div>
+                `;
+                gallery.appendChild(card);
+            });
+        }
+
+        function formatTime(sec) {
+            if (!sec) return "10:00";
+            let m = Math.floor(sec / 60);
+            let s = sec % 60;
+            return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        window.addEventListener('scroll', () => {
+            if (blockScrollTrigger || completelyExhausted) return;
+            if ((window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 300) {
+                const currentQuery = document.getElementById('globalSearch').value.trim();
+                document.getElementById('scrollStatus').textContent = `PAGINATING SYSTEM REQ: LOADING PAGE ${activePageCursor}...`;
+                executeSearchStream(currentQuery, false);
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initTickerTrack();
+            switchMatrixPage(1);
+        });
+    </script>
+</body>
+</html>
