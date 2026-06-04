@@ -84,9 +84,16 @@
         .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
         .card { background: var(--bg-card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); transition: transform 0.2s; }
         .card:hover { transform: translateY(-2px); border-color: #333344; }
-        .media-container { width: 100%; height: 165px; position: relative; background: #000; }
-        .media-container img { width: 100%; height: 100%; object-fit: cover; }
-        .trt-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 3px; }
+        .media-container { width: 100%; height: 165px; position: relative; background: #000; overflow: hidden; }
+        .media-container img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.2s; }
+        .media-container video,
+        .media-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border: none; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+        .media-container.previewing img { opacity: 0; }
+        .media-container.previewing video,
+        .media-container.previewing iframe { opacity: 1; pointer-events: auto; }
+        .trt-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 3px; z-index: 2; }
+        .vol-badge { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.75); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; z-index: 2; opacity: 0; transition: opacity 0.2s; letter-spacing: 1px; }
+        .media-container.previewing .vol-badge { opacity: 1; }
         .card h3 { margin: 14px 14px 6px; font-size: 13.5px; line-height: 1.4; flex-grow: 1; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .card h3 a { color: var(--text-main); text-decoration: none; }
         .card h3 a:hover { color: var(--accent); }
@@ -350,6 +357,83 @@
         }
 
         // ── GRID ──────────────────────────────────────────────────────
+        function getEmbedUrl(v) {
+            const url = v.url || '';
+            const src = (v.source || '').toLowerCase();
+            if (src === 'eporner') {
+                const m = url.match(/\/video-([a-zA-Z0-9]+)-/);
+                return m ? `https://www.eporner.com/embed/${m[1]}/` : null;
+            }
+            if (src === 'xvideos') {
+                const m = url.match(/\/video(\d+)\//);
+                return m ? `https://www.xvideos.com/embedframe/${m[1]}` : null;
+            }
+            if (src === 'xnxx') {
+                const m = url.match(/\/video-([a-zA-Z0-9]+)\//);
+                return m ? `https://www.xnxx.com/embedframe/${m[1]}` : null;
+            }
+            if (src === 'pornhub') {
+                const m = url.match(/viewkey=([a-zA-Z0-9]+)/);
+                return m ? `https://www.pornhub.com/embed/${m[1]}` : null;
+            }
+            if (src === 'spankbang') {
+                const m = url.match(/spankbang\.com\/([a-z0-9]+)\//);
+                return m ? `https://spankbang.com/${m[1]}/embed/` : null;
+            }
+            if (src === 'xhamster') {
+                const m = url.match(/-(\d+)(?:\/|$)/);
+                return m ? `https://xhamster.com/xembed.php?video=${m[1]}` : null;
+            }
+            if (src === 'beeg') {
+                const m = url.match(/\/(\d+)(?:\/|$)/);
+                return m ? `https://beeg.com/index.php?video=${m[1]}&embed=true` : null;
+            }
+            return null;
+        }
+
+        function attachHoverPreview(mc, v) {
+            let previewEl = null;
+            let hoverTimer = null;
+
+            mc.addEventListener('mouseenter', () => {
+                hoverTimer = setTimeout(() => {
+                    if (previewEl) return;
+                    const directMp4 = v.preview_url || '';
+                    if (directMp4) {
+                        // Direct video file — best quality, volume controllable
+                        const vid = document.createElement('video');
+                        vid.src = directMp4;
+                        vid.autoplay = true;
+                        vid.loop = true;
+                        vid.volume = 0.2;
+                        vid.playsInline = true;
+                        mc.appendChild(vid);
+                        previewEl = vid;
+                    } else {
+                        const embedUrl = getEmbedUrl(v);
+                        if (!embedUrl) return;
+                        const iframe = document.createElement('iframe');
+                        iframe.src = embedUrl + (embedUrl.includes('?') ? '&' : '?') + 'autoplay=1';
+                        iframe.allow = 'autoplay; fullscreen';
+                        iframe.allowFullscreen = true;
+                        mc.appendChild(iframe);
+                        previewEl = iframe;
+                    }
+                    mc.classList.add('previewing');
+                }, 400); // 400ms delay before triggering
+            });
+
+            mc.addEventListener('mouseleave', () => {
+                clearTimeout(hoverTimer);
+                if (previewEl) {
+                    if (previewEl.tagName === 'VIDEO') previewEl.pause();
+                    previewEl.remove();
+                    previewEl = null;
+                }
+                mc.classList.remove('previewing');
+            });
+        }
+
         function appendItemsToGrid(items) {
             const gallery = document.getElementById('gallery');
             const filtered = items.filter(v => {
@@ -363,8 +447,9 @@
                 const safeSource = (v.source || '').replace(/'/g, "\\'");
                 card.innerHTML = `
                     <div class="media-container">
-                        <img src="${v.thumb}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400';">
+                        <img src="${v.thumb || ''}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400';">
                         <div class="trt-badge">${formatTime(v.duration)}</div>
+                        <div class="vol-badge">&#9654; 20%</div>
                     </div>
                     <h3><a href="${v.url}" target="_blank" rel="noopener">${escHtml(v.title)}</a></h3>
                     <div class="card-footer">
@@ -372,6 +457,8 @@
                         <span class="date-tag">${v.added_date ? v.added_date.slice(0,10) : 'Live'}</span>
                     </div>
                 `;
+                const mc = card.querySelector('.media-container');
+                attachHoverPreview(mc, v);
                 gallery.appendChild(card);
             });
         }

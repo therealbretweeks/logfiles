@@ -89,18 +89,19 @@ def strip_quotes(q):
 def is_exact(q):
     return (q.startswith('"') and q.endswith('"')) or (q.startswith("'") and q.endswith("'"))
 
-def make_record(title, url, thumb, source, duration=600):
+def make_record(title, url, thumb, source, duration=600, preview_url=''):
     t = (title or '').strip()
     if not t or not url:
         return None
     return {
         "title": t, "url": url, "thumb": thumb or '',
         "source": source, "duration": duration,
+        "preview_url": preview_url or '',
         "added_date": datetime.now().isoformat(), "is_album": False,
     }
 
-def add_record(lst, title, url, thumb, source, duration=600):
-    r = make_record(title, url, thumb, source, duration)
+def add_record(lst, title, url, thumb, source, duration=600, preview_url=''):
+    r = make_record(title, url, thumb, source, duration, preview_url)
     if r:
         lst.append(r)
 
@@ -121,13 +122,15 @@ def scrape_eporner(q, page=1):
             url_el = video.find('url')
             thumb_el = video.find('default_thumb')
             dur_el = video.find('length_sec')
+            preview_el = video.find('preview')  # direct .mp4 preview clip
             if title_el is None or url_el is None:
                 continue
             title = (title_el.text or '').strip()
             if not title or any(fw in title.lower() for fw in FORBIDDEN_WORDS):
                 continue
             length_sec = int(dur_el.text or 600) if dur_el is not None else 600
-            add_record(records, title, url_el.text or '', (thumb_el.text or '') if thumb_el is not None else '', "Eporner", length_sec)
+            preview_url = (preview_el.text or '') if preview_el is not None else ''
+            add_record(records, title, url_el.text or '', (thumb_el.text or '') if thumb_el is not None else '', "Eporner", length_sec, preview_url)
         print(f"Eporner q={q!r} p={page}: {len(records)} records")
     except Exception as e:
         print(f"Eporner error: {e}")
@@ -150,7 +153,8 @@ def scrape_xhamster(q, page=1):
             thumbs = v.get('thumbs') or []
             thumb = (thumbs[0].get('src') or '') if thumbs else (v.get('thumbURL') or v.get('thumbnail') or '')
             duration = v.get('duration') or 600
-            add_record(results, title, vid_url, thumb, "xHamster", int(duration))
+            preview_url = v.get('videoPreviewURL') or v.get('previewURL') or ''
+            add_record(results, title, vid_url, thumb, "xHamster", int(duration), preview_url)
         print(f"xHamster q={q!r} p={page}: {len(results)} items")
     except Exception as e:
         print(f"xHamster error: {e}")
