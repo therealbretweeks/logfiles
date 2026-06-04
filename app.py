@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import os
 import json
 import re
+import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
@@ -31,22 +32,21 @@ DEFAULT_SEED_QUERIES = [
     "step daddy", "daddy dom", "taboo roleplay", "daddy ageplay",
 ]
 
-HEADERS = {
+BASE_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 }
 
-def safe_get(url, extra_headers=None, timeout=6):
-    """GET with retry on SSL/connection errors."""
-    headers = {**HEADERS, **(extra_headers or {})}
+def safe_get(url, extra_headers=None, timeout=8):
+    headers = {**BASE_HEADERS, **(extra_headers or {})}
     for attempt in range(3):
         try:
-            return requests.get(url, headers=headers, timeout=timeout)
-        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
-            if attempt == 2:
-                raise
-            import time; time.sleep(0.5 * (attempt + 1))
+            res = requests.get(url, headers=headers, timeout=timeout)
+            return res
+        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
+            if attempt < 2:
+                time.sleep(0.5 * (attempt + 1))
     return None
 
 def load_db():
@@ -100,36 +100,146 @@ def add_record(lst, title, url, thumb, source, duration=600):
     if r:
         lst.append(r)
 
-# ==================== SCRAPERS ====================
+# ==================== API-BASED SCRAPERS ====================
 
 def scrape_eporner(q, page=1):
+    """Eporner public XML API — most reliable, 100/page."""
     records = []
     try:
-        url = ("https://www.eporner.com/api/v2/video/search/?query="
-               + requests.utils.quote(q)
-               + f"&per_page=100&page={page}&format=xml")
+        url = (f"https://www.eporner.com/api/v2/video/search/?query={requests.utils.quote(q)}"
+               f"&per_page=100&page={page}&format=xml")
         res = safe_get(url)
-        if res.status_code == 200:
-            root = ET.fromstring(res.content)
-            for video in root.findall('.//video'):
-                title = (video.find('title').text or '').strip()
-                if not title or any(fw in title.lower() for fw in FORBIDDEN_WORDS):
-                    continue
-                vid_url = video.find('url').text or ''
-                thumb = video.find('default_thumb').text or ''
-                length_sec = int(video.find('length_sec').text or 600)
-                source = TUBE_DOMAINS[sum(ord(c) for c in title) % len(TUBE_DOMAINS)]
-                add_record(records, title, vid_url, thumb, source, length_sec)
+        if not res or res.status_code != 200:
+            return records
+        root = ET.fromstring(res.content)
+        for video in root.findall('.//video'):
+            title = (video.find('title').text or '').strip()
+            if not title or any(fw in title.lower() for fw in FORBIDDEN_WORDS):
+                continue
+            vid_url = video.find('url').text or ''
+            thumb = video.find('default_thumb').text or ''
+            length_sec = int(video.find('length_sec').text or 600)
+            source = TUBE_DOMAINS[sum(ord(c) for c in title) % len(TUBE_DOMAINS)]
+            add_record(records, title, vid_url, thumb, source, length_sec)
+        print(f"Eporner q={q!r} p={page}: {len(records)} records")
     except Exception as e:
         print(f"Eporner error: {e}")
     return records
 
 
+def scrape_xhamster(q, page=1):
+    """xHamster front-end JSON API — returns proper structured data."""
+    results = []
+    try:
+        url = (f"https://xhamster.com/api/front/search"
+               f"?query={requests.utils.quote(q)}&page={page}&per_page=32&category=&orientations=straight")
+        res = safe_get(url, extra_headers={'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'})
+        if not res or res.status_code != 200:
+            print(f"xHamster API q={q!r} p={page}: status {res.status_code if res else 'None'}")
+            return results
+        data = res.json()
+        videos = (data.get('videos') or {}).get('items') or data.get('items') or []
+        for v in videos:
+            title = v.get('title') or v.get('name') or ''
+            vid_url = v.get('pageURL') or v.get('url') or ''
+            thumbs = v.get('thumbs') or []
+            thumb = (thumbs[0].get('src') or '') if thumbs else (v.get('thumbURL') or v.get('thumbnail') or '')
+            duration = v.get('duration') or 600
+            add_record(results, title, vid_url, thumb, "xHamster", int(duration))
+        print(f"xHamster API q={q!r} p={page}: {len(results)} items")
+    except Exception as e:
+        print(f"xHamster error (q={q!r} p={page}): {e}")
+    return results
+
+
+def scrape_spankbang(q, page=1):
+    """SpankBang — parse embedded JSON from their SSR page."""
+    results = []
+    try:
+        slug = re.sub(r'\s+', '-', q.strip().lower())
+        url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{page}/"
+        res = safe_get(url)
+        if not res:
+            return results
+        html = res.text
+        print(f"SpankBang q={q!r} p={page}: status {res.status_code}, html={len(html)}b")
+
+        # Strategy 1: Next.js __NEXT_DATA__ JSON blob
+        m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>', html, re.DOTALL)
+        if m:
+            try:
+                nd = json.loads(m.group(1))
+                # Walk props.pageProps for video lists
+                pp = nd.get('props', {}).get('pageProps', {})
+                for key in ('videos', 'results', 'items', 'searchResults', 'videoList'):
+                    vlist = pp.get(key) or []
+                    if isinstance(vlist, list) and vlist:
+                        for v in vlist:
+                            title = v.get('title') or v.get('name') or ''
+                            vid_url = v.get('url') or v.get('link') or ''
+                            if vid_url and not vid_url.startswith('http'):
+                                vid_url = 'https://spankbang.com' + vid_url
+                            thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
+                            dur = v.get('duration') or v.get('length') or 600
+                            add_record(results, title, vid_url, thumb, "SpankBang", int(dur))
+                        if results:
+                            print(f"SpankBang __NEXT_DATA__ q={q!r} p={page}: {len(results)} items")
+                            return results
+            except Exception as e:
+                print(f"SpankBang __NEXT_DATA__ parse error: {e}")
+
+        # Strategy 2: var pageData / sbData / videos embedded in script tag
+        for var_name in ('pageData', 'sbData', 'videos', 'searchData', 'DATA'):
+            m = re.search(rf'var\s+{var_name}\s*=\s*(\{{.*?\}}|\[.*?\]);', html, re.DOTALL)
+            if m:
+                try:
+                    raw = json.loads(m.group(1))
+                    vlist = raw if isinstance(raw, list) else (
+                        raw.get('videos') or raw.get('results') or raw.get('items') or [])
+                    for v in vlist:
+                        title = v.get('title') or v.get('name') or ''
+                        vid_url = v.get('url') or v.get('link') or ''
+                        if vid_url and not vid_url.startswith('http'):
+                            vid_url = 'https://spankbang.com' + vid_url
+                        thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
+                        dur = v.get('duration') or v.get('length') or 600
+                        add_record(results, title, vid_url, thumb, "SpankBang", int(dur))
+                    if results:
+                        print(f"SpankBang var {var_name} q={q!r} p={page}: {len(results)} items")
+                        return results
+                except:
+                    pass
+
+        # Strategy 3: HTML parse (last resort)
+        soup = BeautifulSoup(html, 'html.parser')
+        items = soup.select('.video-item, [data-id], li[id^="v"]')
+        for item in items:
+            try:
+                title_el = item.select_one('.n, .title, h3')
+                link_el = item.select_one('a[href]')
+                img_el = item.select_one('img[data-src], img[src]')
+                if not (title_el and link_el):
+                    continue
+                thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                href = link_el.get('href', '')
+                full_url = ('https://spankbang.com' + href) if href.startswith('/') else href
+                add_record(results, safe_get_text(title_el), full_url, thumb, "SpankBang")
+            except:
+                continue
+        print(f"SpankBang HTML q={q!r} p={page}: {len(results)} items")
+    except Exception as e:
+        print(f"SpankBang error (q={q!r} p={page}): {e}")
+    return results
+
+
 def scrape_xvideos(q, page=0):
+    """XVideos — SSR, reliably parseable."""
     results = []
     try:
         url = f"https://www.xvideos.com/?k={requests.utils.quote(q)}&p={page}"
         res = safe_get(url)
+        if not res:
+            return results
         soup = BeautifulSoup(res.text, 'html.parser')
         for item in soup.select('.thumb-block'):
             try:
@@ -146,8 +256,9 @@ def scrape_xvideos(q, page=0):
                            parse_duration(safe_get_text(dur_el)) if dur_el else 600)
             except:
                 continue
+        print(f"XVideos q={q!r} p={page}: {len(results)} items")
     except Exception as e:
-        print(f"XVideos error (q={q!r} p={page}): {e}")
+        print(f"XVideos error: {e}")
     return results
 
 
@@ -156,6 +267,8 @@ def scrape_xnxx(q, page=0):
     try:
         url = f"https://www.xnxx.com/search/{requests.utils.quote(q)}/{page}"
         res = safe_get(url)
+        if not res:
+            return results
         soup = BeautifulSoup(res.text, 'html.parser')
         for item in soup.select('.thumb-block, .mozaique .thumb'):
             try:
@@ -170,8 +283,9 @@ def scrape_xnxx(q, page=0):
                 add_record(results, safe_get_text(title_el), full_url, thumb, "XNXX")
             except:
                 continue
+        print(f"XNXX q={q!r} p={page}: {len(results)} items")
     except Exception as e:
-        print(f"XNXX error (q={q!r} p={page}): {e}")
+        print(f"XNXX error: {e}")
     return results
 
 
@@ -180,6 +294,8 @@ def scrape_pornhub(q, page=1):
     try:
         url = f"https://www.pornhub.com/video/search?search={requests.utils.quote(q)}&p={page}"
         res = safe_get(url)
+        if not res:
+            return results
         soup = BeautifulSoup(res.text, 'html.parser')
         for item in soup.select('li.pcVideoListItem, .videoBox'):
             try:
@@ -196,74 +312,9 @@ def scrape_pornhub(q, page=1):
                            parse_duration(safe_get_text(dur_el)) if dur_el else 600)
             except:
                 continue
+        print(f"Pornhub q={q!r} p={page}: {len(results)} items")
     except Exception as e:
-        print(f"Pornhub error (q={q!r} p={page}): {e}")
-    return results
-
-
-def scrape_xhamster(q, page=1):
-    results = []
-    try:
-        url = f"https://xhamster.com/search/{requests.utils.quote(q)}?page={page}"
-        res = safe_get(url)
-        html = res.text
-
-        # xHamster SSR embeds all data in window.initials
-        m = re.search(r'window\.initials\s*=\s*(\{.+?\});\s*(?:window\.|</script>)', html, re.DOTALL)
-        if m:
-            try:
-                data = json.loads(m.group(1))
-                videos = []
-                # Walk known paths — their structure changes between deploys
-                for top in ('searchResult', 'videoSearchResult', 'categoryVideoResult'):
-                    node = data.get(top) or {}
-                    for sub in ('videos', 'models', 'items', 'data', 'videoList'):
-                        cand = node.get(sub, [])
-                        if isinstance(cand, list) and cand and isinstance(cand[0], dict):
-                            videos = cand
-                            break
-                    if videos:
-                        break
-                # Last resort: any top-level list whose first item has pageURL
-                if not videos:
-                    for v in data.values():
-                        if isinstance(v, list) and v and isinstance(v[0], dict) and v[0].get('pageURL'):
-                            videos = v
-                            break
-                for v in videos:
-                    title = v.get('title') or v.get('name') or ''
-                    vid_url = v.get('pageURL') or v.get('url') or ''
-                    thumbs = v.get('thumbs') or []
-                    thumb = (thumbs[0].get('src') or thumbs[0].get('url') or '') if thumbs else ''
-                    thumb = thumb or v.get('thumbURL') or v.get('thumbnailURL') or v.get('coverURL') or ''
-                    duration = v.get('duration') or 600
-                    add_record(results, title, vid_url, thumb, "xHamster", int(duration))
-                print(f"xHamster JSON q={q!r} p={page}: {len(results)} items")
-                if results:
-                    return results
-            except Exception as je:
-                print(f"xHamster JSON error: {je}")
-
-        # HTML fallback
-        soup = BeautifulSoup(html, 'html.parser')
-        items = soup.select('.thumb-list__item, .video-thumb')
-        print(f"xHamster HTML q={q!r} p={page}: {len(items)} items")
-        for item in items:
-            try:
-                link_el = item.select_one('a[href]')
-                if not link_el:
-                    continue
-                title = (link_el.get('title') or '').strip()
-                if not title:
-                    title_el = item.select_one('[class*="title"], [class*="name"]')
-                    title = safe_get_text(title_el)
-                img_el = item.select_one('img')
-                thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
-                add_record(results, title, link_el.get('href', ''), thumb, "xHamster")
-            except:
-                continue
-    except Exception as e:
-        print(f"xHamster error (q={q!r} p={page}): {e}")
+        print(f"Pornhub error: {e}")
     return results
 
 
@@ -272,25 +323,23 @@ def scrape_camstreams(q, page=1):
     try:
         url = f"https://www.camstreams.tv/search/?q={requests.utils.quote(q)}&page={page}"
         res = safe_get(url)
+        if not res:
+            return results
         soup = BeautifulSoup(res.text, 'html.parser')
-        # Only accept items that have both an img AND a link with a meaningful href
         raw = soup.select('.video-item, .stream-item, .model-item, .thumb-item')
         items = [el for el in raw if el.find('img') and el.find('a', href=True)]
-        print(f"CamStreams q={q!r} p={page}: {len(items)} items (status {res.status_code})")
         seen = set()
         for item in items:
             try:
-                link_el = item.select_one('a[href*="/video"], a[href*="/stream"], a[href*="/model"], a[href*="/cam"]')
-                if not link_el:
-                    link_el = item.find('a', href=True)
-                href = (link_el.get('href') or '') if link_el else ''
+                link_el = item.find('a', href=True)
+                href = link_el.get('href', '') if link_el else ''
                 if not href or href in ('/', '#'):
                     continue
                 full_url = href if href.startswith('http') else ('https://www.camstreams.tv' + href)
                 if full_url in seen:
                     continue
                 seen.add(full_url)
-                title = (link_el.get('title') or '').strip() if link_el else ''
+                title = (link_el.get('title') or '').strip()
                 if not title:
                     title_el = item.select_one('.title, h3, h4, [class*="name"]')
                     title = safe_get_text(title_el)
@@ -301,48 +350,32 @@ def scrape_camstreams(q, page=1):
                 add_record(results, title, full_url, thumb, "CamStreams")
             except:
                 continue
+        print(f"CamStreams q={q!r} p={page}: {len(results)} items")
     except Exception as e:
-        print(f"CamStreams error (q={q!r} p={page}): {e}")
-    return results
-
-
-def scrape_beeg(q, page=1):
-    results = []
-    try:
-        url = f"https://beeg.com/search/{requests.utils.quote(q)}/{page}"
-        res = safe_get(url)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        for item in soup.select('.thumb, article.video-item'):
-            try:
-                title_el = item.select_one('.title, h3')
-                link_el = item.select_one('a[href]')
-                img_el = item.select_one('img')
-                if not (title_el and link_el):
-                    continue
-                thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
-                href = link_el.get('href', '')
-                full_url = ("https://beeg.com" + href) if href.startswith('/') else href
-                add_record(results, safe_get_text(title_el), full_url, thumb, "Beeg")
-            except:
-                continue
-    except Exception as e:
-        print(f"Beeg error (q={q!r} p={page}): {e}")
+        print(f"CamStreams error: {e}")
     return results
 
 
 # ==================== ORCHESTRATION ====================
 
+SCRAPERS = [
+    scrape_eporner,   # real API, most reliable
+    scrape_xhamster,  # real JSON API
+    scrape_spankbang, # embedded JSON + HTML fallback
+    scrape_xvideos,   # SSR HTML
+    scrape_xnxx,      # SSR HTML
+    scrape_pornhub,   # SSR HTML
+    scrape_camstreams, # SSR HTML
+]
+
 def _fan_out(sub_queries, scrape_pages, executor):
     futures = []
     for sq in sub_queries:
         for pg in scrape_pages:
-            futures.append(executor.submit(scrape_eporner, sq, pg))
-            futures.append(executor.submit(scrape_xvideos, sq, pg - 1))
-            futures.append(executor.submit(scrape_xnxx, sq, pg - 1))
-            futures.append(executor.submit(scrape_xhamster, sq, pg))
-            futures.append(executor.submit(scrape_pornhub, sq, pg))
-            futures.append(executor.submit(scrape_beeg, sq, pg))
-            futures.append(executor.submit(scrape_camstreams, sq, pg))
+            for scraper in SCRAPERS:
+                # xvideos/xnxx are 0-indexed
+                p = pg - 1 if scraper in (scrape_xvideos, scrape_xnxx) else pg
+                futures.append(executor.submit(scraper, sq, p))
     return futures
 
 
@@ -350,8 +383,8 @@ def seed_database():
     master_db = load_db()
     existing_urls = {x["url"] for x in master_db if "url" in x}
     new_records = []
-    with ThreadPoolExecutor(max_workers=12) as executor:
-        futures = _fan_out(DEFAULT_SEED_QUERIES, list(range(1, 6)), executor)
+    with ThreadPoolExecutor(max_workers=14) as executor:
+        futures = _fan_out(DEFAULT_SEED_QUERIES, list(range(1, 4)), executor)
         for f in futures:
             try:
                 for record in f.result():
@@ -376,10 +409,10 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
     else:
         sub_queries = [clean] if clean else DEFAULT_SEED_QUERIES[:3]
 
-    scrape_pages = list(range(page, page + 5))
+    scrape_pages = list(range(page, page + 3))
     aggregated = []
 
-    with ThreadPoolExecutor(max_workers=12) as executor:
+    with ThreadPoolExecutor(max_workers=14) as executor:
         futures = _fan_out(sub_queries, scrape_pages, executor)
         for f in futures:
             try:
@@ -406,7 +439,8 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         save_db(master_db + new_records)
         results = new_records
     else:
-        results = [r for r in master_db if any(sq.lower() in r.get("title", "").lower() for sq in sub_queries)]
+        results = [r for r in master_db
+                   if any(sq.lower() in r.get("title", "").lower() for sq in sub_queries)]
         if not results:
             results = [r for r in aggregated if (r.get("title") or '').strip()]
 
