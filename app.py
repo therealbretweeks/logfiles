@@ -435,26 +435,26 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         master_db = master_db + new_records
         save_db(master_db)
 
-    # Build full matching set from DB (includes everything accumulated so far)
-    phrase = clean.lower()
-    all_matching = [r for r in master_db
-                    if any(sq.lower() in r.get("title", "").lower() for sq in sub_queries)]
-
-    # Exact mode: additionally filter to titles that contain the exact phrase
-    if exact:
-        all_matching = [r for r in all_matching if phrase in r.get("title", "").lower()]
-
-    # Return paginated slice — consistent window regardless of how many were new
     page_size = 100
     start = (page - 1) * page_size
-    results = all_matching[start:start + page_size]
+
+    if exact:
+        # Exact: filter full DB to titles containing the phrase
+        phrase = clean.lower()
+        pool = [r for r in master_db if phrase in r.get("title", "").lower()]
+    else:
+        # Non-exact: new_records are already from the right search query — use them.
+        # For subsequent pages pull from DB ordered newest-first (most recently scraped).
+        if new_records:
+            pool = new_records
+        else:
+            # Slice from the tail of DB (newest entries = results from this query)
+            pool = list(reversed(master_db))
 
     if preferred_source and preferred_source != "All":
-        all_source = [r for r in all_matching
-                      if r.get("source", "").lower() == preferred_source.lower()]
-        results = all_source[start:start + page_size]
+        pool = [r for r in pool if r.get("source", "").lower() == preferred_source.lower()]
 
-    return results
+    return pool[start:start + page_size]
 
 
 @app.route("/")
