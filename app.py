@@ -409,7 +409,9 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
     else:
         sub_queries = [clean] if clean else DEFAULT_SEED_QUERIES[:3]
 
-    scrape_pages = list(range(page, page + 3))
+    # Non-overlapping page windows: page 1→[1,2,3], page 2→[4,5,6], page 3→[7,8,9]
+    batch_start = (page - 1) * 3 + 1
+    scrape_pages = list(range(batch_start, batch_start + 3))
     aggregated = []
 
     with ThreadPoolExecutor(max_workers=14) as executor:
@@ -439,9 +441,13 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         save_db(master_db + new_records)
         results = new_records
     else:
-        results = [r for r in master_db
-                   if any(sq.lower() in r.get("title", "").lower() for sq in sub_queries)]
-        if not results:
+        # DB fallback: paginate so repeated pages don't return the same slice
+        page_size = 100
+        matching = [r for r in master_db
+                    if any(sq.lower() in r.get("title", "").lower() for sq in sub_queries)]
+        start = (page - 1) * page_size
+        results = matching[start:start + page_size]
+        if not results and aggregated:
             results = [r for r in aggregated if (r.get("title") or '').strip()]
 
     if preferred_source and preferred_source != "All":

@@ -340,8 +340,7 @@
             if (blockScrollTrigger || completelyExhausted) return;
             const scrollBottom = window.innerHeight + window.scrollY;
             const pageHeight = document.documentElement.scrollHeight;
-            // Only trigger when user is actually near the bottom and page is taller than viewport
-            if (pageHeight > window.innerHeight * 1.5 && scrollBottom >= pageHeight - 600) {
+            if (scrollBottom >= pageHeight - 400) {
                 const currentQuery = getSearchQuery();
                 document.getElementById('scrollStatus').textContent = `PAGINATING SYSTEM REQ: LOADING PAGE ${activePageCursor}...`;
                 executeSearchStream(currentQuery, false);
