@@ -119,8 +119,7 @@ def scrape_eporner(q, page=1):
             vid_url = video.find('url').text or ''
             thumb = video.find('default_thumb').text or ''
             length_sec = int(video.find('length_sec').text or 600)
-            source = TUBE_DOMAINS[sum(ord(c) for c in title) % len(TUBE_DOMAINS)]
-            add_record(records, title, vid_url, thumb, source, length_sec)
+            add_record(records, title, vid_url, thumb, "Eporner", length_sec)
         print(f"Eporner q={q!r} p={page}: {len(records)} records")
     except Exception as e:
         print(f"Eporner error: {e}")
@@ -422,13 +421,9 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
             except:
                 pass
 
-    if exact:
-        phrase = clean.lower()
-        aggregated = [r for r in aggregated if phrase in r.get("title", "").lower()]
-
+    # Save any new records to DB
     master_db = load_db()
     existing_urls = {x["url"] for x in master_db if "url" in x}
-
     new_records, seen = [], set()
     for record in aggregated:
         u = record.get("url")
@@ -436,26 +431,30 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         if u and t and u not in existing_urls and u not in seen:
             new_records.append(record)
             seen.add(u)
-
     if new_records:
-        save_db(master_db + new_records)
-        results = new_records
-    else:
-        # DB fallback: paginate so repeated pages don't return the same slice
-        page_size = 100
-        matching = [r for r in master_db
+        master_db = master_db + new_records
+        save_db(master_db)
+
+    # Build full matching set from DB (includes everything accumulated so far)
+    phrase = clean.lower()
+    all_matching = [r for r in master_db
                     if any(sq.lower() in r.get("title", "").lower() for sq in sub_queries)]
-        start = (page - 1) * page_size
-        results = matching[start:start + page_size]
-        if not results and aggregated:
-            results = [r for r in aggregated if (r.get("title") or '').strip()]
+
+    # Exact mode: additionally filter to titles that contain the exact phrase
+    if exact:
+        all_matching = [r for r in all_matching if phrase in r.get("title", "").lower()]
+
+    # Return paginated slice — consistent window regardless of how many were new
+    page_size = 100
+    start = (page - 1) * page_size
+    results = all_matching[start:start + page_size]
 
     if preferred_source and preferred_source != "All":
-        prioritized = [r for r in results if r.get("source", "").lower() == preferred_source.lower()]
-        others = [r for r in results if r.get("source", "").lower() != preferred_source.lower()]
-        results = prioritized + others
+        all_source = [r for r in all_matching
+                      if r.get("source", "").lower() == preferred_source.lower()]
+        results = all_source[start:start + page_size]
 
-    return results[:1000]
+    return results
 
 
 @app.route("/")

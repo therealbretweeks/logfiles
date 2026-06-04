@@ -245,11 +245,14 @@
                 const incomingBatch = await res.json();
 
                 if (!Array.isArray(incomingBatch) || incomingBatch.length === 0) {
-                    completelyExhausted = true;
-                    document.getElementById('scrollStatus').textContent = 'END OF RESULTS';
                     if (visualRegistryPool.length === 0) {
-                        document.getElementById('gallery').innerHTML = 
+                        document.getElementById('gallery').innerHTML =
                             '<p style="text-align:center; color:var(--text-muted); grid-column:1/-1; padding:60px;">No results found.</p>';
+                        completelyExhausted = true;
+                    } else {
+                        // No new results this page but may have more on next scrape batch
+                        completelyExhausted = true;
+                        document.getElementById('scrollStatus').textContent = 'END OF RESULTS';
                     }
                     blockScrollTrigger = false;
                     updateSidebarCounters();
