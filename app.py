@@ -112,8 +112,8 @@ def scrape_spankbang(q, page=1):
         url = f"https://spankbang.com/s/{slug}/{page}/"
         res = requests.get(url, headers=HEADERS, timeout=10)
         soup = BeautifulSoup(res.text, 'html.parser')
-        items = soup.select('.video-item, [data-video-id]')
-        print(f"SpankBang q={q!r} p={page}: {len(items)} items (status {res.status_code})")
+        items = soup.select('.video-item, [data-video-id], .stream-item, li[id^="v-"], .thumb')
+        print(f"SpankBang q={q!r} p={page}: {len(items)} items (status {res.status_code}), url={url}")
         for item in items:
             try:
                 title_el = item.select_one('.n, .title, [class*="title"]')
@@ -365,8 +365,8 @@ def seed_database():
     existing_urls = {x["url"] for x in master_db if "url" in x}
     new_records = []
 
-    with ThreadPoolExecutor(max_workers=24) as executor:
-        futures = _fan_out(DEFAULT_SEED_QUERIES, [1, 2, 3], executor)
+    with ThreadPoolExecutor(max_workers=64) as executor:
+        futures = _fan_out(DEFAULT_SEED_QUERIES, list(range(1, 10)), executor)
         for f in futures:
             try:
                 for record in f.result():
@@ -394,9 +394,10 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         sub_queries = [clean] if clean else DEFAULT_SEED_QUERIES[:3]
 
     aggregated = []
-    scrape_pages = list(range(page, page + 3))
+    # Fetch 15 pages per scraper per call — at ~20-30 results/page that's 300-450 from SpankBang alone
+    scrape_pages = list(range(page, page + 15))
 
-    with ThreadPoolExecutor(max_workers=24) as executor:
+    with ThreadPoolExecutor(max_workers=64) as executor:
         futures = _fan_out(sub_queries, scrape_pages, executor)
         for f in futures:
             try:
@@ -433,7 +434,7 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         others = [r for r in results if r.get("source", "").lower() != preferred_source.lower()]
         results = prioritized + others
 
-    return results[:500]
+    return results[:1000]
 
 
 @app.route("/")
