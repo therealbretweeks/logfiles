@@ -61,85 +61,228 @@ def safe_get_text(el):
 
 # ==================== REAL SCRAPERS ====================
 
-def scrape_spankbang(q):
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
+
+def scrape_spankbang(q, page=1):
     results = []
     try:
-        url = f"https://spankbang.com/s/{requests.utils.quote(q)}/"
-        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=6)
+        slug = requests.utils.quote(q.replace(' ', '-'))
+        url = f"https://spankbang.com/s/{slug}/{page}/"
+        res = requests.get(url, headers=HEADERS, timeout=8)
         soup = BeautifulSoup(res.text, 'html.parser')
-        for item in soup.select('.video-item')[:20]:
+        for item in soup.select('.video-item'):
             try:
-                title_el = item.select_one('.n')
-                link_el = item.select_one('a')
+                title_el = item.select_one('.n, .title')
+                link_el = item.select_one('a[href]')
                 img_el = item.select_one('img')
-                if title_el and link_el and img_el:
-                    results.append({
-                        "title": safe_get_text(title_el),
-                        "url": "https://spankbang.com" + link_el.get('href', ''),
-                        "thumb": img_el.get('src') or img_el.get('data-src', ''),
-                        "source": "SpankBang",
-                        "duration": 600,
-                        "added_date": datetime.now().isoformat(),
-                        "is_album": False
-                    })
+                if not (title_el and link_el):
+                    continue
+                thumb = ''
+                if img_el:
+                    thumb = img_el.get('data-src') or img_el.get('src') or ''
+                dur_el = item.select_one('.l, .video-duration')
+                duration = 600
+                if dur_el:
+                    parts = safe_get_text(dur_el).split(':')
+                    try:
+                        duration = sum(int(p) * (60 ** i) for i, p in enumerate(reversed(parts)))
+                    except:
+                        pass
+                results.append({
+                    "title": safe_get_text(title_el),
+                    "url": "https://spankbang.com" + link_el.get('href', ''),
+                    "thumb": thumb,
+                    "source": "SpankBang",
+                    "duration": duration,
+                    "added_date": datetime.now().isoformat(),
+                    "is_album": False
+                })
             except:
                 continue
     except Exception as e:
-        print(f"SpankBang error: {e}")
+        print(f"SpankBang error (q={q} p={page}): {e}")
     return results
 
-def scrape_xhamster(q):
+def scrape_xhamster(q, page=1):
     results = []
     try:
-        url = f"https://xhamster.com/search/{requests.utils.quote(q)}"
-        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=6)
+        url = f"https://xhamster.com/search/{requests.utils.quote(q)}?page={page}"
+        res = requests.get(url, headers=HEADERS, timeout=8)
         soup = BeautifulSoup(res.text, 'html.parser')
-        for item in soup.select('.thumb-list__item, .video-thumb')[:20]:
+        for item in soup.select('.thumb-list__item, .video-thumb, [class*="VideoThumb"]'):
             try:
-                title_el = item.select_one('.video-thumb-info__name, .thumb-title')
-                link_el = item.select_one('a')
+                title_el = item.select_one('.video-thumb-info__name, .thumb-title, [class*="title"]')
+                link_el = item.select_one('a[href]')
                 img_el = item.select_one('img')
-                if title_el and link_el and img_el:
-                    results.append({
-                        "title": safe_get_text(title_el),
-                        "url": link_el.get('href') or '',
-                        "thumb": img_el.get('src') or img_el.get('data-src', ''),
-                        "source": "xHamster",
-                        "duration": 600,
-                        "added_date": datetime.now().isoformat(),
-                        "is_album": False
-                    })
+                if not (title_el and link_el):
+                    continue
+                thumb = ''
+                if img_el:
+                    thumb = img_el.get('data-src') or img_el.get('src') or ''
+                results.append({
+                    "title": safe_get_text(title_el),
+                    "url": link_el.get('href') or '',
+                    "thumb": thumb,
+                    "source": "xHamster",
+                    "duration": 600,
+                    "added_date": datetime.now().isoformat(),
+                    "is_album": False
+                })
             except:
                 continue
     except Exception as e:
-        print(f"xHamster error: {e}")
+        print(f"xHamster error (q={q} p={page}): {e}")
     return results
 
-def scrape_beeg(q):
+def scrape_xvideos(q, page=0):
     results = []
     try:
-        url = f"https://beeg.com/search/{requests.utils.quote(q)}"
-        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=6)
+        url = f"https://www.xvideos.com/?k={requests.utils.quote(q)}&p={page}"
+        res = requests.get(url, headers=HEADERS, timeout=8)
         soup = BeautifulSoup(res.text, 'html.parser')
-        for item in soup.select('.thumb')[:20]:
+        for item in soup.select('.thumb-block, #list-videos-search-result .thumb'):
             try:
-                title_el = item.select_one('.title')
-                link_el = item.select_one('a')
+                title_el = item.select_one('.title a, p.title a')
+                link_el = item.select_one('a[href]')
                 img_el = item.select_one('img')
-                if title_el and link_el and img_el:
-                    results.append({
-                        "title": safe_get_text(title_el),
-                        "url": "https://beeg.com" + link_el.get('href', ''),
-                        "thumb": img_el.get('src') or img_el.get('data-src', ''),
-                        "source": "Beeg",
-                        "duration": 600,
-                        "added_date": datetime.now().isoformat(),
-                        "is_album": False
-                    })
+                if not (title_el and link_el):
+                    continue
+                thumb = ''
+                if img_el:
+                    thumb = img_el.get('data-src') or img_el.get('src') or ''
+                dur_el = item.select_one('.duration')
+                duration = 600
+                if dur_el:
+                    parts = safe_get_text(dur_el).split(':')
+                    try:
+                        duration = sum(int(p) * (60 ** i) for i, p in enumerate(reversed(parts)))
+                    except:
+                        pass
+                href = link_el.get('href', '')
+                full_url = ("https://www.xvideos.com" + href) if href.startswith('/') else href
+                results.append({
+                    "title": safe_get_text(title_el),
+                    "url": full_url,
+                    "thumb": thumb,
+                    "source": "XVideos",
+                    "duration": duration,
+                    "added_date": datetime.now().isoformat(),
+                    "is_album": False
+                })
             except:
                 continue
     except Exception as e:
-        print(f"Beeg error: {e}")
+        print(f"XVideos error (q={q} p={page}): {e}")
+    return results
+
+def scrape_xnxx(q, page=0):
+    results = []
+    try:
+        url = f"https://www.xnxx.com/search/{requests.utils.quote(q)}/{page}"
+        res = requests.get(url, headers=HEADERS, timeout=8)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for item in soup.select('.thumb-block, .mozaique .thumb'):
+            try:
+                title_el = item.select_one('.title a, p.title a')
+                link_el = item.select_one('a[href]')
+                img_el = item.select_one('img')
+                if not (title_el and link_el):
+                    continue
+                thumb = ''
+                if img_el:
+                    thumb = img_el.get('data-src') or img_el.get('src') or ''
+                href = link_el.get('href', '')
+                full_url = ("https://www.xnxx.com" + href) if href.startswith('/') else href
+                results.append({
+                    "title": safe_get_text(title_el),
+                    "url": full_url,
+                    "thumb": thumb,
+                    "source": "XNXX",
+                    "duration": 600,
+                    "added_date": datetime.now().isoformat(),
+                    "is_album": False
+                })
+            except:
+                continue
+    except Exception as e:
+        print(f"XNXX error (q={q} p={page}): {e}")
+    return results
+
+def scrape_pornhub(q, page=1):
+    results = []
+    try:
+        url = f"https://www.pornhub.com/video/search?search={requests.utils.quote(q)}&p={page}"
+        res = requests.get(url, headers=HEADERS, timeout=8)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for item in soup.select('li.pcVideoListItem, .videoBox'):
+            try:
+                title_el = item.select_one('.title a, span.title a')
+                link_el = item.select_one('a[href]')
+                img_el = item.select_one('img')
+                if not (title_el and link_el):
+                    continue
+                thumb = ''
+                if img_el:
+                    thumb = img_el.get('data-thumb_url') or img_el.get('data-src') or img_el.get('src') or ''
+                dur_el = item.select_one('.duration, var.duration')
+                duration = 600
+                if dur_el:
+                    parts = safe_get_text(dur_el).split(':')
+                    try:
+                        duration = sum(int(p) * (60 ** i) for i, p in enumerate(reversed(parts)))
+                    except:
+                        pass
+                href = link_el.get('href', '')
+                full_url = ("https://www.pornhub.com" + href) if href.startswith('/') else href
+                results.append({
+                    "title": safe_get_text(title_el),
+                    "url": full_url,
+                    "thumb": thumb,
+                    "source": "Pornhub",
+                    "duration": duration,
+                    "added_date": datetime.now().isoformat(),
+                    "is_album": False
+                })
+            except:
+                continue
+    except Exception as e:
+        print(f"Pornhub error (q={q} p={page}): {e}")
+    return results
+
+def scrape_beeg(q, page=1):
+    results = []
+    try:
+        url = f"https://beeg.com/search/{requests.utils.quote(q)}/{page}"
+        res = requests.get(url, headers=HEADERS, timeout=8)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for item in soup.select('.thumb, article.video-item'):
+            try:
+                title_el = item.select_one('.title, h3')
+                link_el = item.select_one('a[href]')
+                img_el = item.select_one('img')
+                if not (title_el and link_el):
+                    continue
+                thumb = ''
+                if img_el:
+                    thumb = img_el.get('data-src') or img_el.get('src') or ''
+                href = link_el.get('href', '')
+                full_url = ("https://beeg.com" + href) if href.startswith('/') else href
+                results.append({
+                    "title": safe_get_text(title_el),
+                    "url": full_url,
+                    "thumb": thumb,
+                    "source": "Beeg",
+                    "duration": 600,
+                    "added_date": datetime.now().isoformat(),
+                    "is_album": False
+                })
+            except:
+                continue
+    except Exception as e:
+        print(f"Beeg error (q={q} p={page}): {e}")
     return results
 
 # ==================== EPORNER ====================
@@ -179,24 +322,30 @@ def run_single_scrape(clean_q, page=1):
 
 
 def seed_database():
-    """Populate db with results from multiple default queries across multiple pages."""
+    """Populate db from all scrapers across multiple default queries and pages."""
     master_db = load_db()
     existing_urls = {x["url"] for x in master_db if "url" in x}
     new_records = []
 
-    tasks = []
-    for query in DEFAULT_SEED_QUERIES:
-        for page in range(1, 4):  # pages 1-3 = up to 300 results per query
-            tasks.append((query, page))
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = []
+        for query in DEFAULT_SEED_QUERIES:
+            for page in range(1, 4):
+                futures.append(executor.submit(run_single_scrape, query, page))
+                futures.append(executor.submit(scrape_spankbang, query, page))
+                futures.append(executor.submit(scrape_xvideos, query, page - 1))
+                futures.append(executor.submit(scrape_xnxx, query, page - 1))
+                futures.append(executor.submit(scrape_xhamster, query, page))
+                futures.append(executor.submit(scrape_pornhub, query, page))
+                futures.append(executor.submit(scrape_beeg, query, page))
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(run_single_scrape, q, p): (q, p) for q, p in tasks}
         for f in futures:
             try:
                 for record in f.result():
-                    if record.get("url") and record["url"] not in existing_urls:
+                    u = record.get("url")
+                    if u and u not in existing_urls:
                         new_records.append(record)
-                        existing_urls.add(record["url"])
+                        existing_urls.add(u)
             except:
                 pass
 
@@ -213,23 +362,21 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         sub_queries = [query.strip()] if query.strip() else DEFAULT_SEED_QUERIES[:3]
 
     aggregated_results = []
+    scrape_pages = list(range(page, page + 3))  # fetch 3 consecutive pages per scraper
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=20) as executor:
         futures = []
-
-        if preferred_source:
-            ps = preferred_source.lower()
-            if ps == "spankbang":
-                futures += [executor.submit(scrape_spankbang, sq) for sq in sub_queries]
-            elif ps in ["xhamster", "xhamster.com"]:
-                futures += [executor.submit(scrape_xhamster, sq) for sq in sub_queries]
-            elif ps == "beeg":
-                futures += [executor.submit(scrape_beeg, sq) for sq in sub_queries]
-
-        # Run multiple pages per sub-query for volume
         for sq in sub_queries:
-            for pg in range(page, page + 3):
+            for pg in scrape_pages:
+                # Eporner API (most reliable)
                 futures.append(executor.submit(run_single_scrape, sq, pg))
+                # Real scrapers — always fire, not just on preferred_source
+                futures.append(executor.submit(scrape_spankbang, sq, pg))
+                futures.append(executor.submit(scrape_xvideos, sq, pg - 1))  # xvideos pages are 0-indexed
+                futures.append(executor.submit(scrape_xnxx, sq, pg - 1))
+                futures.append(executor.submit(scrape_xhamster, sq, pg))
+                futures.append(executor.submit(scrape_pornhub, sq, pg))
+                futures.append(executor.submit(scrape_beeg, sq, pg))
 
         for f in futures:
             try:
@@ -252,17 +399,17 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
         save_db(master_db + final_new_records)
         results = final_new_records
     else:
-        # Return from db if nothing new
         results = [r for r in master_db if any(sq.lower() in r.get("title", "").lower() for sq in sub_queries)]
         if not results:
             results = aggregated_results
 
+    # If source filter active, float matching results to top
     if preferred_source and preferred_source != "All":
         prioritized = [r for r in results if r.get("source", "").lower() == preferred_source.lower()]
         others = [r for r in results if r.get("source", "").lower() != preferred_source.lower()]
         results = prioritized + others
 
-    return results[:200]
+    return results[:500]
 
 
 @app.route("/")
