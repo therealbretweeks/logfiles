@@ -42,8 +42,7 @@ def safe_get(url, extra_headers=None, timeout=8):
     headers = {**BASE_HEADERS, **(extra_headers or {})}
     for attempt in range(3):
         try:
-            res = requests.get(url, headers=headers, timeout=timeout)
-            return res
+            return requests.get(url, headers=headers, timeout=timeout)
         except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
             if attempt < 2:
                 time.sleep(0.5 * (attempt + 1))
@@ -92,7 +91,7 @@ def make_record(title, url, thumb, source, duration=600):
     return {
         "title": t, "url": url, "thumb": thumb or '',
         "source": source, "duration": duration,
-        "added_date": datetime.now().isoformat(), "is_album": False
+        "added_date": datetime.now().isoformat(), "is_album": False,
     }
 
 def add_record(lst, title, url, thumb, source, duration=600):
@@ -100,10 +99,9 @@ def add_record(lst, title, url, thumb, source, duration=600):
     if r:
         lst.append(r)
 
-# ==================== API-BASED SCRAPERS ====================
+# ==================== SCRAPERS ====================
 
 def scrape_eporner(q, page=1):
-    """Eporner public XML API — most reliable, 100/page."""
     records = []
     try:
         url = (f"https://www.eporner.com/api/v2/video/search/?query={requests.utils.quote(q)}"
@@ -127,7 +125,6 @@ def scrape_eporner(q, page=1):
 
 
 def scrape_xhamster(q, page=1):
-    """xHamster front-end JSON API — returns proper structured data."""
     results = []
     try:
         url = (f"https://xhamster.com/api/front/search"
@@ -152,27 +149,58 @@ def scrape_xhamster(q, page=1):
 
 
 def scrape_spankbang(q, page=1):
-    """SpankBang — parse embedded JSON from their SSR page."""
     results = []
+
+    # Strategy 1: JSON API endpoint
+    try:
+        api_url = f"https://spankbang.com/api/videos/search/?q={requests.utils.quote(q)}&page={page}&per_page=30"
+        res = safe_get(api_url, extra_headers={
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': 'https://spankbang.com/',
+        })
+        if res and res.status_code == 200:
+            try:
+                data = res.json()
+                videos = data.get('videos') or data.get('results') or data.get('items') or []
+                for v in videos:
+                    title = v.get('title') or v.get('name') or ''
+                    vid_url = v.get('url') or v.get('link') or ''
+                    if vid_url and not vid_url.startswith('http'):
+                        vid_url = 'https://spankbang.com' + vid_url
+                    thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
+                    dur = v.get('duration') or v.get('length') or 600
+                    add_record(results, title, vid_url, thumb, "SpankBang", int(dur))
+                if results:
+                    print(f"SpankBang JSON API q={q!r} p={page}: {len(results)} items")
+                    return results
+            except:
+                pass
+    except Exception as e:
+        print(f"SpankBang JSON API error: {e}")
+
+    # Strategy 2: mobile site (simpler HTML, less bot detection)
     try:
         slug = re.sub(r'\s+', '-', q.strip().lower())
-        url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{page}/"
-        res = safe_get(url)
-        if not res:
-            return results
-        html = res.text
-        print(f"SpankBang q={q!r} p={page}: status {res.status_code}, html={len(html)}b")
+        mob_url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{page}/"
+        res = safe_get(mob_url, extra_headers={
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        })
+        if res and res.status_code == 200:
+            html = res.text
+            print(f"SpankBang mobile q={q!r} p={page}: {res.status_code} {len(html)}b")
 
-        # Strategy 1: Next.js __NEXT_DATA__ JSON blob
-        m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>', html, re.DOTALL)
-        if m:
-            try:
-                nd = json.loads(m.group(1))
-                # Walk props.pageProps for video lists
-                pp = nd.get('props', {}).get('pageProps', {})
-                for key in ('videos', 'results', 'items', 'searchResults', 'videoList'):
-                    vlist = pp.get(key) or []
-                    if isinstance(vlist, list) and vlist:
+            # Try __NEXT_DATA__
+            m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>', html, re.DOTALL)
+            if m:
+                try:
+                    nd = json.loads(m.group(1))
+                    pp = nd.get('props', {}).get('pageProps', {})
+                    for key in ('videos', 'results', 'items', 'searchResults', 'videoList', 'data'):
+                        vlist = pp.get(key) or []
+                        if not isinstance(vlist, list):
+                            vlist = vlist.get('videos') or vlist.get('items') or [] if isinstance(vlist, dict) else []
                         for v in vlist:
                             title = v.get('title') or v.get('name') or ''
                             vid_url = v.get('url') or v.get('link') or ''
@@ -184,55 +212,59 @@ def scrape_spankbang(q, page=1):
                         if results:
                             print(f"SpankBang __NEXT_DATA__ q={q!r} p={page}: {len(results)} items")
                             return results
-            except Exception as e:
-                print(f"SpankBang __NEXT_DATA__ parse error: {e}")
+                except Exception as e:
+                    print(f"SpankBang __NEXT_DATA__ error: {e}")
 
-        # Strategy 2: var pageData / sbData / videos embedded in script tag
-        for var_name in ('pageData', 'sbData', 'videos', 'searchData', 'DATA'):
-            m = re.search(rf'var\s+{var_name}\s*=\s*(\{{.*?\}}|\[.*?\]);', html, re.DOTALL)
-            if m:
+            # Try embedded JS variables
+            for pattern in [
+                r'window\.__DATA__\s*=\s*({.+?});',
+                r'window\.pageData\s*=\s*({.+?});',
+                r'"videos"\s*:\s*(\[.+?\])',
+            ]:
+                m = re.search(pattern, html, re.DOTALL)
+                if m:
+                    try:
+                        raw = json.loads(m.group(1))
+                        vlist = raw if isinstance(raw, list) else (
+                            raw.get('videos') or raw.get('results') or raw.get('items') or [])
+                        for v in vlist:
+                            title = v.get('title') or v.get('name') or ''
+                            vid_url = v.get('url') or v.get('link') or ''
+                            if vid_url and not vid_url.startswith('http'):
+                                vid_url = 'https://spankbang.com' + vid_url
+                            thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
+                            add_record(results, title, vid_url, thumb, "SpankBang")
+                        if results:
+                            print(f"SpankBang JS var q={q!r} p={page}: {len(results)} items")
+                            return results
+                    except:
+                        pass
+
+            # HTML parse last resort
+            soup = BeautifulSoup(html, 'html.parser')
+            items = soup.select('li[id^="v"], .video-item, [data-id]')
+            print(f"SpankBang HTML q={q!r} p={page}: {len(items)} elements found")
+            for item in items:
                 try:
-                    raw = json.loads(m.group(1))
-                    vlist = raw if isinstance(raw, list) else (
-                        raw.get('videos') or raw.get('results') or raw.get('items') or [])
-                    for v in vlist:
-                        title = v.get('title') or v.get('name') or ''
-                        vid_url = v.get('url') or v.get('link') or ''
-                        if vid_url and not vid_url.startswith('http'):
-                            vid_url = 'https://spankbang.com' + vid_url
-                        thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
-                        dur = v.get('duration') or v.get('length') or 600
-                        add_record(results, title, vid_url, thumb, "SpankBang", int(dur))
-                    if results:
-                        print(f"SpankBang var {var_name} q={q!r} p={page}: {len(results)} items")
-                        return results
+                    title_el = item.select_one('.n, .title, h3, p')
+                    link_el = item.select_one('a[href]')
+                    img_el = item.select_one('img[data-src], img[src]')
+                    if not (title_el and link_el):
+                        continue
+                    title = safe_get_text(title_el)
+                    href = link_el.get('href', '')
+                    full_url = ('https://spankbang.com' + href) if href.startswith('/') else href
+                    thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                    add_record(results, title, full_url, thumb, "SpankBang")
                 except:
-                    pass
-
-        # Strategy 3: HTML parse (last resort)
-        soup = BeautifulSoup(html, 'html.parser')
-        items = soup.select('.video-item, [data-id], li[id^="v"]')
-        for item in items:
-            try:
-                title_el = item.select_one('.n, .title, h3')
-                link_el = item.select_one('a[href]')
-                img_el = item.select_one('img[data-src], img[src]')
-                if not (title_el and link_el):
                     continue
-                thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
-                href = link_el.get('href', '')
-                full_url = ('https://spankbang.com' + href) if href.startswith('/') else href
-                add_record(results, safe_get_text(title_el), full_url, thumb, "SpankBang")
-            except:
-                continue
-        print(f"SpankBang HTML q={q!r} p={page}: {len(results)} items")
     except Exception as e:
-        print(f"SpankBang error (q={q!r} p={page}): {e}")
+        print(f"SpankBang mobile error: {e}")
+
     return results
 
 
 def scrape_xvideos(q, page=0):
-    """XVideos — SSR, reliably parseable."""
     results = []
     try:
         url = f"https://www.xvideos.com/?k={requests.utils.quote(q)}&p={page}"
@@ -358,13 +390,13 @@ def scrape_camstreams(q, page=1):
 # ==================== ORCHESTRATION ====================
 
 SCRAPERS = [
-    scrape_eporner,   # real API, most reliable
-    scrape_xhamster,  # real JSON API
-    scrape_spankbang, # embedded JSON + HTML fallback
-    scrape_xvideos,   # SSR HTML
-    scrape_xnxx,      # SSR HTML
-    scrape_pornhub,   # SSR HTML
-    scrape_camstreams, # SSR HTML
+    scrape_eporner,
+    scrape_xhamster,
+    scrape_spankbang,
+    scrape_xvideos,
+    scrape_xnxx,
+    scrape_pornhub,
+    scrape_camstreams,
 ]
 
 def _fan_out(sub_queries, scrape_pages, executor):
@@ -372,10 +404,22 @@ def _fan_out(sub_queries, scrape_pages, executor):
     for sq in sub_queries:
         for pg in scrape_pages:
             for scraper in SCRAPERS:
-                # xvideos/xnxx are 0-indexed
                 p = pg - 1 if scraper in (scrape_xvideos, scrape_xnxx) else pg
-                futures.append(executor.submit(scraper, sq, p))
+                futures.append((executor.submit(scraper, sq, p), sq))
     return futures
+
+
+def _collect(futures):
+    """Collect results, tagging each record with the query that produced it."""
+    out = []
+    for f, sq in futures:
+        try:
+            for r in f.result():
+                r['_q'] = sq.lower()
+                out.append(r)
+        except:
+            pass
+    return out
 
 
 def seed_database():
@@ -384,15 +428,11 @@ def seed_database():
     new_records = []
     with ThreadPoolExecutor(max_workers=14) as executor:
         futures = _fan_out(DEFAULT_SEED_QUERIES, list(range(1, 4)), executor)
-        for f in futures:
-            try:
-                for record in f.result():
-                    u = record.get("url")
-                    if u and u not in existing_urls:
-                        new_records.append(record)
-                        existing_urls.add(u)
-            except:
-                pass
+        for r in _collect(futures):
+            u = r.get("url")
+            if u and u not in existing_urls:
+                new_records.append(r)
+                existing_urls.add(u)
     if new_records:
         save_db(master_db + new_records)
         print(f"Seeded {len(new_records)} new records. Total: {len(master_db) + len(new_records)}")
@@ -408,28 +448,22 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
     else:
         sub_queries = [clean] if clean else DEFAULT_SEED_QUERIES[:3]
 
-    # Non-overlapping page windows: page 1→[1,2,3], page 2→[4,5,6], page 3→[7,8,9]
     batch_start = (page - 1) * 3 + 1
     scrape_pages = list(range(batch_start, batch_start + 3))
-    aggregated = []
 
     with ThreadPoolExecutor(max_workers=14) as executor:
         futures = _fan_out(sub_queries, scrape_pages, executor)
-        for f in futures:
-            try:
-                aggregated.extend(f.result())
-            except:
-                pass
+        aggregated = _collect(futures)
 
-    # Save any new records to DB
+    # Save new records
     master_db = load_db()
     existing_urls = {x["url"] for x in master_db if "url" in x}
     new_records, seen = [], set()
-    for record in aggregated:
-        u = record.get("url")
-        t = (record.get("title") or '').strip()
+    for r in aggregated:
+        u = r.get("url")
+        t = (r.get("title") or '').strip()
         if u and t and u not in existing_urls and u not in seen:
-            new_records.append(record)
+            new_records.append(r)
             seen.add(u)
     if new_records:
         master_db = master_db + new_records
@@ -439,17 +473,15 @@ def run_deep_target_scrape(query, page=1, preferred_source=None):
     start = (page - 1) * page_size
 
     if exact:
-        # Exact: filter full DB to titles containing the phrase
         phrase = clean.lower()
         pool = [r for r in master_db if phrase in r.get("title", "").lower()]
     else:
-        # Non-exact: new_records are already from the right search query — use them.
-        # For subsequent pages pull from DB ordered newest-first (most recently scraped).
-        if new_records:
+        # Use query tag to pull only records from this search
+        qs = {sq.lower() for sq in sub_queries}
+        pool = [r for r in master_db if r.get("_q", "") in qs]
+        # If DB has nothing tagged yet (old records), fall back to new_records
+        if not pool:
             pool = new_records
-        else:
-            # Slice from the tail of DB (newest entries = results from this query)
-            pool = list(reversed(master_db))
 
     if preferred_source and preferred_source != "All":
         pool = [r for r in pool if r.get("source", "").lower() == preferred_source.lower()]
