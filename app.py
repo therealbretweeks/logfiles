@@ -8,6 +8,11 @@ import re
 import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
 
 app = Flask(__name__)
 
@@ -148,116 +153,144 @@ def scrape_xhamster(q, page=1):
     return results
 
 
+def _spankbang_parse_html(html, q, page, label="HTML"):
+    results = []
+    soup = BeautifulSoup(html, 'html.parser')
+
+    # Embedded JSON blobs
+    for pattern in [
+        r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>',
+        r'window\.__DATA__\s*=\s*({.+?});',
+        r'window\.pageData\s*=\s*({.+?});',
+    ]:
+        m = re.search(pattern, html, re.DOTALL)
+        if m:
+            try:
+                raw = json.loads(m.group(1))
+                # Drill into Next.js props if needed
+                if 'props' in raw:
+                    raw = raw.get('props', {}).get('pageProps', {})
+                for key in ('videos', 'results', 'items', 'searchResults', 'videoList', 'data'):
+                    vlist = raw.get(key) or []
+                    if isinstance(vlist, dict):
+                        vlist = vlist.get('videos') or vlist.get('items') or []
+                    for v in vlist:
+                        title = v.get('title') or v.get('name') or ''
+                        vid_url = v.get('url') or v.get('link') or ''
+                        if vid_url and not vid_url.startswith('http'):
+                            vid_url = 'https://spankbang.com' + vid_url
+                        thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
+                        dur = int(v.get('duration') or v.get('length') or 600)
+                        add_record(results, title, vid_url, thumb, "SpankBang", dur)
+                if results:
+                    print(f"SpankBang {label}/JSON q={q!r} p={page}: {len(results)} items")
+                    return results
+            except:
+                pass
+
+    # Raw JSON array in page source
+    m = re.search(r'"videos"\s*:\s*(\[.+?\])', html, re.DOTALL)
+    if m:
+        try:
+            vlist = json.loads(m.group(1))
+            for v in vlist:
+                title = v.get('title') or v.get('name') or ''
+                vid_url = v.get('url') or v.get('link') or ''
+                if vid_url and not vid_url.startswith('http'):
+                    vid_url = 'https://spankbang.com' + vid_url
+                thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
+                add_record(results, title, vid_url, thumb, "SpankBang")
+            if results:
+                print(f"SpankBang {label}/videos[] q={q!r} p={page}: {len(results)} items")
+                return results
+        except:
+            pass
+
+    # DOM fallback
+    for item in soup.select('li[id^="v"], .video-item, [data-id], .videoblock'):
+        try:
+            title_el = item.select_one('.n, .title, h3, p.t')
+            link_el = item.select_one('a[href]')
+            img_el = item.select_one('img[data-src], img[src]')
+            if not (title_el and link_el):
+                continue
+            title = safe_get_text(title_el)
+            href = link_el.get('href', '')
+            full_url = ('https://spankbang.com' + href) if href.startswith('/') else href
+            thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+            add_record(results, title, full_url, thumb, "SpankBang")
+        except:
+            continue
+
+    print(f"SpankBang {label}/DOM q={q!r} p={page}: {len(results)} items")
+    return results
+
+
 def scrape_spankbang(q, page=1):
     results = []
+    slug = re.sub(r'\s+', '-', q.strip().lower())
+    search_url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{page}/"
 
-    # Strategy 1: JSON API endpoint
-    try:
-        api_url = f"https://spankbang.com/api/videos/search/?q={requests.utils.quote(q)}&page={page}&per_page=30"
-        res = safe_get(api_url, extra_headers={
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Referer': 'https://spankbang.com/',
-        })
-        if res and res.status_code == 200:
-            try:
-                data = res.json()
-                videos = data.get('videos') or data.get('results') or data.get('items') or []
-                for v in videos:
+    # Strategy 1: Playwright headless (executes JS, bypasses bot detection)
+    if PLAYWRIGHT_AVAILABLE:
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(headless=True, args=['--no-sandbox'])
+                ctx = browser.new_context(
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    viewport={'width': 1280, 'height': 800},
+                )
+                captured = []
+
+                def handle_response(resp):
+                    try:
+                        if 'spankbang.com' in resp.url and resp.status == 200:
+                            ct = resp.headers.get('content-type', '')
+                            if 'json' in ct:
+                                try:
+                                    data = resp.json()
+                                    vlist = data.get('videos') or data.get('results') or data.get('items') or []
+                                    if vlist:
+                                        captured.extend(vlist)
+                                except:
+                                    pass
+                    except:
+                        pass
+
+                page_obj = ctx.new_page()
+                page_obj.on('response', handle_response)
+                page_obj.goto(search_url, wait_until='networkidle', timeout=20000)
+
+                # Parse any XHR-captured JSON
+                for v in captured:
                     title = v.get('title') or v.get('name') or ''
                     vid_url = v.get('url') or v.get('link') or ''
                     if vid_url and not vid_url.startswith('http'):
                         vid_url = 'https://spankbang.com' + vid_url
                     thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
-                    dur = v.get('duration') or v.get('length') or 600
-                    add_record(results, title, vid_url, thumb, "SpankBang", int(dur))
-                if results:
-                    print(f"SpankBang JSON API q={q!r} p={page}: {len(results)} items")
-                    return results
-            except:
-                pass
-    except Exception as e:
-        print(f"SpankBang JSON API error: {e}")
+                    dur = int(v.get('duration') or v.get('length') or 600)
+                    add_record(results, title, vid_url, thumb, "SpankBang", dur)
 
-    # Strategy 2: mobile site (simpler HTML, less bot detection)
+                if not results:
+                    # Fall back to parsing the rendered DOM
+                    html = page_obj.content()
+                    results = _spankbang_parse_html(html, q, page, label="Playwright")
+
+                browser.close()
+
+                if results:
+                    print(f"SpankBang Playwright q={q!r} p={page}: {len(results)} items")
+                    return results
+        except Exception as e:
+            print(f"SpankBang Playwright error: {e}")
+
+    # Strategy 2: plain HTTP with mobile UA
     try:
-        slug = re.sub(r'\s+', '-', q.strip().lower())
-        mob_url = f"https://spankbang.com/s/{requests.utils.quote(slug, safe='-')}/{page}/"
-        res = safe_get(mob_url, extra_headers={
+        res = safe_get(search_url, extra_headers={
             'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         })
         if res and res.status_code == 200:
-            html = res.text
-            print(f"SpankBang mobile q={q!r} p={page}: {res.status_code} {len(html)}b")
-
-            # Try __NEXT_DATA__
-            m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.+?)</script>', html, re.DOTALL)
-            if m:
-                try:
-                    nd = json.loads(m.group(1))
-                    pp = nd.get('props', {}).get('pageProps', {})
-                    for key in ('videos', 'results', 'items', 'searchResults', 'videoList', 'data'):
-                        vlist = pp.get(key) or []
-                        if not isinstance(vlist, list):
-                            vlist = vlist.get('videos') or vlist.get('items') or [] if isinstance(vlist, dict) else []
-                        for v in vlist:
-                            title = v.get('title') or v.get('name') or ''
-                            vid_url = v.get('url') or v.get('link') or ''
-                            if vid_url and not vid_url.startswith('http'):
-                                vid_url = 'https://spankbang.com' + vid_url
-                            thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
-                            dur = v.get('duration') or v.get('length') or 600
-                            add_record(results, title, vid_url, thumb, "SpankBang", int(dur))
-                        if results:
-                            print(f"SpankBang __NEXT_DATA__ q={q!r} p={page}: {len(results)} items")
-                            return results
-                except Exception as e:
-                    print(f"SpankBang __NEXT_DATA__ error: {e}")
-
-            # Try embedded JS variables
-            for pattern in [
-                r'window\.__DATA__\s*=\s*({.+?});',
-                r'window\.pageData\s*=\s*({.+?});',
-                r'"videos"\s*:\s*(\[.+?\])',
-            ]:
-                m = re.search(pattern, html, re.DOTALL)
-                if m:
-                    try:
-                        raw = json.loads(m.group(1))
-                        vlist = raw if isinstance(raw, list) else (
-                            raw.get('videos') or raw.get('results') or raw.get('items') or [])
-                        for v in vlist:
-                            title = v.get('title') or v.get('name') or ''
-                            vid_url = v.get('url') or v.get('link') or ''
-                            if vid_url and not vid_url.startswith('http'):
-                                vid_url = 'https://spankbang.com' + vid_url
-                            thumb = v.get('thumbnail') or v.get('poster') or v.get('thumb') or ''
-                            add_record(results, title, vid_url, thumb, "SpankBang")
-                        if results:
-                            print(f"SpankBang JS var q={q!r} p={page}: {len(results)} items")
-                            return results
-                    except:
-                        pass
-
-            # HTML parse last resort
-            soup = BeautifulSoup(html, 'html.parser')
-            items = soup.select('li[id^="v"], .video-item, [data-id]')
-            print(f"SpankBang HTML q={q!r} p={page}: {len(items)} elements found")
-            for item in items:
-                try:
-                    title_el = item.select_one('.n, .title, h3, p')
-                    link_el = item.select_one('a[href]')
-                    img_el = item.select_one('img[data-src], img[src]')
-                    if not (title_el and link_el):
-                        continue
-                    title = safe_get_text(title_el)
-                    href = link_el.get('href', '')
-                    full_url = ('https://spankbang.com' + href) if href.startswith('/') else href
-                    thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
-                    add_record(results, title, full_url, thumb, "SpankBang")
-                except:
-                    continue
+            results = _spankbang_parse_html(res.text, q, page, label="mobile")
     except Exception as e:
         print(f"SpankBang mobile error: {e}")
 
