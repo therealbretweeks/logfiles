@@ -30,11 +30,17 @@ TUBE_DOMAINS = [
     "WatchPorn", "OK.xxx", "Porn00", "JustPorn", "WhoresHub", "CamStreams"
 ]
 
-FORBIDDEN_WORDS = ["feet", "foot", "toes", "footjob", "shrimping", "oralfoot"]
+FORBIDDEN_WORDS = [
+    "feet", "foot", "toes", "footjob", "shrimping", "oralfoot",
+    "gay", "twink", "twinks", "faggot", "men fucking men", "gay sex",
+    "gay porn", "gay video", "bareback men",
+]
+
+GAY_TITLE_WORDS = {"gay", "twink", "twinks", "faggot"}
 
 DEFAULT_SEED_QUERIES = [
-    "daddy roleplay", "stepdaughter roleplay", "daddy daughter",
-    "step daddy", "daddy dom", "taboo roleplay", "daddy ageplay",
+    "stepdaughter roleplay", "daddy daughter", "step daddy",
+    "taboo roleplay", "stepmom",
 ]
 
 BASE_HEADERS = {
@@ -93,10 +99,16 @@ def make_record(title, url, thumb, source, duration=600, preview_url=''):
     t = (title or '').strip()
     if not t or not url:
         return None
+    tl = t.lower()
+    # Global content filter
+    if any(fw in tl for fw in FORBIDDEN_WORDS):
+        return None
+    words = set(re.split(r'\W+', tl))
+    if words & GAY_TITLE_WORDS:
+        return None
     return {
         "title": t, "url": url, "thumb": thumb or '',
         "source": source, "duration": duration,
-        "preview_url": preview_url or '',
         "added_date": datetime.now().isoformat(), "is_album": False,
     }
 
@@ -919,6 +931,345 @@ def scrape_motherless(q, page=1):
     return results
 
 
+# ==================== ALT SCRAPERS (BDSM / TRANS / FETISH) ====================
+
+def scrape_porncom(q, page=1):
+    return _generic_scrape(q, page, 'https://www.porn.com',
+        f'https://www.porn.com/search/?search={requests.utils.quote(q)}&page={page}',
+        'Porn.com', '.item, .video-item, .thumb', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_ixxx(q, page=1):
+    return _generic_scrape(q, page, 'https://www.ixxx.com',
+        f'https://www.ixxx.com/search/{requests.utils.quote(q)}/{page}/',
+        'IXXX', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_vxxx(q, page=1):
+    return _generic_scrape(q, page, 'https://www.vxxx.com',
+        f'https://www.vxxx.com/search/{requests.utils.quote(q)}/{page}/',
+        'VXXX', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_pornone(q, page=1):
+    return _generic_scrape(q, page, 'https://pornone.com',
+        f'https://pornone.com/search/?q={requests.utils.quote(q)}&page={page}',
+        'PornOne', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_sxyprn(q, page=1):
+    return _generic_scrape(q, page, 'https://sxyprn.com',
+        f'https://sxyprn.com/search/{requests.utils.quote(q)}/{page}/',
+        'SxyPrn', '.item, .thumb, .post', '.title a, h3 a, a[title]',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_boundhub(q, page=1):
+    return _generic_scrape(q, page, 'https://boundhub.com',
+        f'https://boundhub.com/search/?search_query={requests.utils.quote(q)}&page={page}',
+        'BoundHub', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_thisvid(q, page=1):
+    return _generic_scrape(q, page, 'https://thisvid.com',
+        f'https://thisvid.com/search/?q={requests.utils.quote(q)}&page={page}',
+        'ThisVid', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_hypnotube(q, page=1):
+    return _generic_scrape(q, page, 'https://hypnotube.com',
+        f'https://hypnotube.com/search/{requests.utils.quote(q)}/{page}/',
+        'HypnoTube', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_heavyfetish(q, page=1):
+    return _generic_scrape(q, page, 'https://heavyfetish.com',
+        f'https://heavyfetish.com/search/{requests.utils.quote(q)}/{page}/',
+        'HeavyFetish', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_tubebdsm(q, page=1):
+    return _generic_scrape(q, page, 'https://www.tubebdsm.com',
+        f'https://www.tubebdsm.com/search/{requests.utils.quote(q)}/{page}/',
+        'TubeBDSM', '.item, .thumb, .video-item, .videoblock', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_spankingtube(q, page=1):
+    return _generic_scrape(q, page, 'https://spankingtube.com',
+        f'https://spankingtube.com/search/{requests.utils.quote(q)}/{page}/',
+        'SpankingTube', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_bdsmstreak(q, page=1):
+    return _generic_scrape(q, page, 'https://bdsmstreak.com',
+        f'https://bdsmstreak.com/search/{requests.utils.quote(q)}/{page}/',
+        'BdsmStreak', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_bdsmone(q, page=1):
+    return _generic_scrape(q, page, 'https://bdsm.one',
+        f'https://bdsm.one/search/{requests.utils.quote(q)}/{page}/',
+        'BDSM.one', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_punishbang(q, page=1):
+    return _generic_scrape(q, page, 'https://punishbang.com',
+        f'https://punishbang.com/search/{requests.utils.quote(q)}/{page}/',
+        'PunishBang', '.item, .thumb, .video-item, .videoblock', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_hcbdsm(q, page=1):
+    return _generic_scrape(q, page, 'https://hcbdsm.com',
+        f'https://hcbdsm.com/search/{requests.utils.quote(q)}/{page}/',
+        'hcBDSM', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_bondagevalley(q, page=1):
+    return _generic_scrape(q, page, 'https://bondagevalley.cc',
+        f'https://bondagevalley.cc/search/{requests.utils.quote(q)}/{page}/',
+        'BondageValley', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_pornfd(q, page=1):
+    return _generic_scrape(q, page, 'https://pornfd.com',
+        f'https://pornfd.com/search/{requests.utils.quote(q)}/{page}/',
+        'PornFD', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_femefun(q, page=1):
+    return _generic_scrape(q, page, 'https://femefun.com',
+        f'https://femefun.com/search/{requests.utils.quote(q)}/{page}/',
+        'FemeFun', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_domporn(q, page=1):
+    return _generic_scrape(q, page, 'https://domporn.net',
+        f'https://domporn.net/search/{requests.utils.quote(q)}/{page}/',
+        'DomPorn', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_bdsmx(q, page=1):
+    return _generic_scrape(q, page, 'https://bdsmx.tube',
+        f'https://bdsmx.tube/search/{requests.utils.quote(q)}/{page}/',
+        'BDSMx', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_ashemaletube(q, page=1):
+    return _generic_scrape(q, page, 'https://www.ashemaletube.com',
+        f'https://www.ashemaletube.com/search/?q={requests.utils.quote(q)}&page={page}',
+        'aShemaleTube', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_shemalez(q, page=1):
+    return _generic_scrape(q, page, 'https://shemalez.com',
+        f'https://shemalez.com/search/{requests.utils.quote(q)}/{page}/',
+        'Shemalez', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_transjizz(q, page=1):
+    return _generic_scrape(q, page, 'https://transjizz.com',
+        f'https://transjizz.com/search/{requests.utils.quote(q)}/{page}/',
+        'TransJizz', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_trannytube(q, page=1):
+    return _generic_scrape(q, page, 'https://trannytube.tv',
+        f'https://trannytube.tv/search/{requests.utils.quote(q)}/{page}/',
+        'TrannyTube', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_shemale6(q, page=1):
+    return _generic_scrape(q, page, 'https://shemale6.com',
+        f'https://shemale6.com/search/{requests.utils.quote(q)}/{page}/',
+        'Shemale6', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_tgtube(q, page=1):
+    return _generic_scrape(q, page, 'https://tgtube.com',
+        f'https://tgtube.com/search/{requests.utils.quote(q)}/{page}/',
+        'TGTube', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_trannyvideosxxx(q, page=1):
+    return _generic_scrape(q, page, 'https://trannyvideosxxx.com',
+        f'https://trannyvideosxxx.com/search/{requests.utils.quote(q)}/{page}/',
+        'TrannyVideosXXX', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_xshemale(q, page=1):
+    return _generic_scrape(q, page, 'https://xshemale.tv',
+        f'https://xshemale.tv/search/{requests.utils.quote(q)}/{page}/',
+        'XShemale', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_shemaletubevideos(q, page=1):
+    return _generic_scrape(q, page, 'https://shemaletubevideos.com',
+        f'https://shemaletubevideos.com/search/{requests.utils.quote(q)}/{page}/',
+        'ShemaleTubeVideos', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_transflix(q, page=1):
+    return _generic_scrape(q, page, 'https://transflix.net',
+        f'https://transflix.net/search/{requests.utils.quote(q)}/{page}/',
+        'TransFlix', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_gettranny(q, page=1):
+    return _generic_scrape(q, page, 'https://gettranny.com',
+        f'https://gettranny.com/search/{requests.utils.quote(q)}/{page}/',
+        'GetTranny', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_spicytranny(q, page=1):
+    return _generic_scrape(q, page, 'https://spicytranny.com',
+        f'https://spicytranny.com/search/{requests.utils.quote(q)}/{page}/',
+        'SpicyTranny', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_trannyone(q, page=1):
+    return _generic_scrape(q, page, 'https://www.tranny.one',
+        f'https://www.tranny.one/search/{requests.utils.quote(q)}/{page}/',
+        'Tranny.one', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_tsmodelstube(q, page=1):
+    return _generic_scrape(q, page, 'https://tsmodelstube.com',
+        f'https://tsmodelstube.com/search/{requests.utils.quote(q)}/{page}/',
+        'TSModelsTube', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_abtranny(q, page=1):
+    return _generic_scrape(q, page, 'https://abtranny.com',
+        f'https://abtranny.com/search/{requests.utils.quote(q)}/{page}/',
+        'ABTranny', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_transhub(q, page=1):
+    return _generic_scrape(q, page, 'https://transhub.to',
+        f'https://transhub.to/search/{requests.utils.quote(q)}/{page}/',
+        'TransHub', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_transtube(q, page=1):
+    return _generic_scrape(q, page, 'https://transtube.tv',
+        f'https://transtube.tv/search/{requests.utils.quote(q)}/{page}/',
+        'TransTube', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_shemale777(q, page=1):
+    return _generic_scrape(q, page, 'https://shemale777.com',
+        f'https://shemale777.com/search/{requests.utils.quote(q)}/{page}/',
+        'Shemale777', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_transvids(q, page=1):
+    return _generic_scrape(q, page, 'https://transvids.tv',
+        f'https://transvids.tv/search/{requests.utils.quote(q)}/{page}/',
+        'TransVids', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+def scrape_shemalevids(q, page=1):
+    return _generic_scrape(q, page, 'https://shemalevids.org',
+        f'https://shemalevids.org/search/{requests.utils.quote(q)}/{page}/',
+        'ShemaleVids', '.item, .thumb, .video-item', '.title a, h3 a',
+        'a[href]', 'img[data-src], img[src]', '.duration')
+
+
+ALT_SCRAPERS = [
+    # General tubes (reused from main)
+    scrape_pornhub, scrape_xvideos, scrape_xhamster, scrape_xnxx,
+    scrape_youporn, scrape_redtube, scrape_eporner, scrape_tube8, scrape_txxx,
+    # New general
+    scrape_porncom, scrape_ixxx, scrape_vxxx, scrape_pornone, scrape_sxyprn,
+    # BDSM / Fetish
+    scrape_boundhub, scrape_thisvid, scrape_hypnotube, scrape_heavyfetish,
+    scrape_tubebdsm, scrape_spankingtube, scrape_bdsmstreak, scrape_bdsmone,
+    scrape_punishbang, scrape_hcbdsm, scrape_bondagevalley, scrape_pornfd,
+    scrape_femefun, scrape_domporn, scrape_bdsmx,
+    # Trans / Shemale
+    scrape_ashemaletube, scrape_shemalez, scrape_transjizz, scrape_trannytube,
+    scrape_shemale6, scrape_tgtube, scrape_trannyvideosxxx, scrape_xshemale,
+    scrape_shemaletubevideos, scrape_transflix, scrape_gettranny, scrape_spicytranny,
+    scrape_trannyone, scrape_tsmodelstube, scrape_abtranny, scrape_transhub,
+    scrape_transtube, scrape_shemale777, scrape_transvids, scrape_shemalevids,
+]
+
+ALT_DB_FILE = os.path.join(BASE_DIR, "alt_db.json")
+
+def load_alt_db():
+    if not os.path.exists(ALT_DB_FILE):
+        return []
+    try:
+        with open(ALT_DB_FILE, "r", encoding="utf-8") as f:
+            return json.loads(f.read().strip() or "[]")
+    except:
+        return []
+
+def save_alt_db(data):
+    try:
+        with open(ALT_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+    except:
+        pass
+
+def _do_alt_scrape(sub_queries, site_pages):
+    with ThreadPoolExecutor(max_workers=32) as executor:
+        futures = []
+        for sq in sub_queries:
+            for pg in site_pages:
+                for scraper in ALT_SCRAPERS:
+                    p = pg - 1 if scraper in (scrape_xvideos, scrape_xnxx) else pg
+                    futures.append((executor.submit(scraper, sq, p), sq))
+            futures.append((executor.submit(scrape_spankbang_bulk, sq, site_pages), sq))
+        return _collect(futures)
+
+def run_alt_scrape(query, page=1, preferred_source=None, sort_by='default'):
+    exact = is_exact(query)
+    clean = strip_quotes(query)
+    if not exact and "," in clean:
+        sub_queries = [q.strip() for q in clean.split(",") if q.strip()]
+    else:
+        sub_queries = [clean] if clean else ["bdsm", "trans", "fetish"]
+
+    page_size = 100
+    start = (page - 1) * page_size
+    need_up_to = start + page_size
+
+    master_db = load_alt_db()
+    pool = _build_pool(master_db, sub_queries, exact, clean)
+
+    if len(pool) < need_up_to:
+        already = max(len(pool) // max(len(sub_queries), 1) // 25, 0)
+        batch_start = already + 1
+        site_pages = list(range(batch_start, batch_start + 10))
+        aggregated = _do_alt_scrape(sub_queries, site_pages)
+        existing_urls = {x["url"] for x in master_db if "url" in x}
+        new_records, seen = [], set()
+        for r in aggregated:
+            u = r.get("url")
+            t = (r.get("title") or '').strip()
+            if u and t and u not in existing_urls and u not in seen:
+                new_records.append(r)
+                seen.add(u)
+        if new_records:
+            master_db = master_db + new_records
+            save_alt_db(master_db)
+        pool = _build_pool(master_db, sub_queries, exact, clean)
+        if not pool:
+            pool = new_records
+
+    if preferred_source and preferred_source != "All":
+        pool = [r for r in pool if r.get("source", "").lower() == preferred_source.lower()]
+
+    if sort_by == 'duration_desc':
+        pool = sorted(pool, key=lambda r: r.get('duration', 0), reverse=True)
+    elif sort_by == 'duration_asc':
+        pool = sorted(pool, key=lambda r: r.get('duration', 0))
+    elif sort_by == 'date_desc':
+        pool = sorted(pool, key=lambda r: r.get('added_date', ''), reverse=True)
+
+    return pool[start:start + page_size]
+
+
 # ==================== ORCHESTRATION ====================
 
 # All scrapers except SpankBang (handled via bulk)
@@ -1068,9 +1419,21 @@ def run_deep_target_scrape(query, page=1, preferred_source=None, sort_by='defaul
     return pool[start:start + page_size]
 
 
+ALT_DOMAINS = [
+    "Porn.com", "IXXX", "VXXX", "PornOne", "SxyPrn", "Pornhub", "XVideos", "xHamster",
+    "XNXX", "YouPorn", "RedTube", "SpankBang", "Eporner", "Tube8", "TXXX",
+    "BoundHub", "ThisVid", "HypnoTube", "HeavyFetish", "TubeBDSM", "SpankingTube",
+    "BdsmStreak", "BDSM.one", "PunishBang", "hcBDSM", "BondageValley", "PornFD",
+    "FemeFun", "DomPorn", "BDSMx",
+    "aShemaleTube", "Shemalez", "TransJizz", "TrannyTube", "Shemale6", "TGTube",
+    "TrannyVideosXXX", "XShemale", "ShemaleTubeVideos", "TransFlix", "GetTranny",
+    "SpicyTranny", "Tranny.one", "TSModelsTube", "ABTranny", "TransHub", "TransTube",
+    "Shemale777", "TransVids", "ShemaleVids",
+]
+
 @app.route("/")
 def index():
-    return render_template("index.html", networks=TUBE_DOMAINS)
+    return render_template("index.html", networks=TUBE_DOMAINS, alt_networks=ALT_DOMAINS)
 
 
 @app.route("/fast_search", methods=["GET"])
@@ -1091,6 +1454,17 @@ def fast_search():
         master_db = seed_database()
     start = (page - 1) * 200
     return jsonify(master_db[start:start + 200])
+
+
+@app.route("/alt_search", methods=["GET"])
+def alt_search():
+    query = request.args.get("query", "").strip()
+    page = int(request.args.get("page", 1))
+    preferred_source = request.args.get("source", None)
+    sort_by = request.args.get("sort", "default")
+    if not query:
+        return jsonify([])
+    return jsonify(run_alt_scrape(query, page=page, preferred_source=preferred_source, sort_by=sort_by))
 
 
 if __name__ == "__main__":

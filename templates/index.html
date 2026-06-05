@@ -15,51 +15,60 @@
             --border: #151520;
             --green: #00d46a;
             --green-glow: rgba(0,212,106,0.4);
+            --alt-accent: #b94fff;
+            --alt-glow: rgba(185,79,255,0.2);
         }
+        body { background: var(--bg-base); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 0; margin: 0; display: flex; min-height: 100vh; }
 
-        body {
-            background: var(--bg-base); color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            padding: 0; margin: 0; display: flex; min-height: 100vh;
-        }
-
-        .main-content { flex-grow: 1; padding: 30px; max-width: calc(100% - 320px); margin-right: 320px; }
+        /* ── SIDEBAR ── */
         .right-sidebar { width: 290px; background: var(--bg-surface); border-left: 1px solid var(--border); padding: 24px 15px; overflow-y: auto; height: 100vh; position: fixed; right: 0; top: 0; z-index: 100; }
         .right-sidebar h4 { margin: 0 0 15px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
+        .right-sidebar h4.alt-head { color: var(--alt-accent); }
         .sidebar-list { list-style: none; padding: 0; margin: 0; }
         .sidebar-list li { padding: 9px 11px; font-size: 11.5px; color: var(--text-muted); border-bottom: 1px solid rgba(21,21,32,0.5); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s; }
         .sidebar-list li:hover { color: var(--accent); background: rgba(255,140,58,0.03); }
         .sidebar-list li.active-tube { color: #fff; font-weight: bold; background: rgba(255,140,58,0.08); border-radius: 4px; border-left: 2px solid var(--accent); }
+        .alt-mode .sidebar-list li:hover { color: var(--alt-accent); }
+        .alt-mode .sidebar-list li.active-tube { background: rgba(185,79,255,0.08); border-left-color: var(--alt-accent); }
         .counter-badge { font-size: 10px; background: var(--bg-card); padding: 2px 6px; border-radius: 8px; color: var(--text-muted); border: 1px solid var(--border); font-weight: bold; }
         .active-tube .counter-badge { color: var(--accent); border-color: rgba(255,140,58,0.3); }
+        .alt-mode .active-tube .counter-badge { color: var(--alt-accent); border-color: rgba(185,79,255,0.3); }
+        #mainSidebar { display: block; }
+        #altSidebar { display: none; }
 
-        .banner-link { display: inline-block; width: 100%; text-align: center; text-decoration: none; color: var(--accent); cursor: pointer; user-select: none; transition: transform 0.15s ease; }
+        /* ── MAIN CONTENT ── */
+        .main-content { flex-grow: 1; padding: 30px; max-width: calc(100% - 320px); margin-right: 320px; }
+        .banner-link { display: inline-block; width: 100%; text-align: center; text-decoration: none; color: var(--accent); cursor: pointer; user-select: none; transition: transform 0.15s; }
         .banner-link:hover { transform: scale(1.01); }
         .banner-link h1 { font-size: 40px; letter-spacing: 7px; font-weight: 900; margin: 10px 0 2px; text-shadow: 0 0 12px var(--accent-glow); }
         p.subtitle { text-align: center; color: var(--text-muted); margin-bottom: 25px; font-size: 11px; text-transform: uppercase; letter-spacing: 4px; }
 
-        .matrix-nav { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; }
-        .nav-tab { padding: 10px 20px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.2s ease; }
+        /* ── TABS ── */
+        .matrix-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; }
+        .nav-tab { padding: 10px 20px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.2s; }
         .nav-tab:hover { border-color: var(--accent); color: var(--text-main); }
         .nav-tab.active-tab { background: rgba(255,140,58,0.1); border-color: var(--accent); color: #fff; box-shadow: 0 0 10px var(--accent-glow); }
+        .nav-tab.alt-tab:hover { border-color: var(--alt-accent); }
+        .nav-tab.alt-tab.active-tab { background: rgba(185,79,255,0.1); border-color: var(--alt-accent); box-shadow: 0 0 10px var(--alt-glow); }
 
-        /* === EXACT GAUGE === */
-        .gauge-row { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; }
+        /* ── GAUGE ── */
+        .gauge-row { display: flex; justify-content: center; margin-bottom: 10px; }
         .exact-gauge { display: flex; align-items: center; gap: 7px; cursor: pointer; padding: 5px 14px; border-radius: 20px; background: var(--bg-card); border: 1px solid var(--border); transition: all 0.25s; user-select: none; }
         .exact-gauge:hover { border-color: rgba(0,212,106,0.3); }
         .exact-gauge.gauge-active { border-color: rgba(0,212,106,0.5); background: rgba(0,212,106,0.06); }
         .gauge-pip { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); border: 1px solid #333; transition: all 0.3s; flex-shrink: 0; }
-        .gauge-active .gauge-pip { background: var(--green); border-color: var(--green); box-shadow: 0 0 8px var(--green-glow), 0 0 2px var(--green); }
+        .gauge-active .gauge-pip { background: var(--green); border-color: var(--green); box-shadow: 0 0 8px var(--green-glow); }
         .gauge-label { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); transition: color 0.25s; }
         .gauge-active .gauge-label { color: var(--green); }
 
-        /* === SORT ROW === */
+        /* ── SORT ── */
         .sort-row { display: flex; align-items: center; gap: 8px; }
         .sort-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
         .sort-btn { padding: 6px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; transition: all 0.2s; }
         .sort-btn:hover { border-color: var(--accent); color: var(--text-main); }
         .sort-btn.active { background: rgba(255,140,58,0.1); color: var(--accent); border-color: rgba(255,140,58,0.4); }
 
+        /* ── CONTROL PANEL ── */
         .control-panel-wrapper { display: flex; flex-direction: column; gap: 10px; margin-bottom: 30px; }
         .control-panel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; display: flex; flex-direction: column; gap: 12px; }
         .search-row { display: flex; gap: 10px; align-items: center; }
@@ -67,32 +76,30 @@
         .search-box:focus { border-color: var(--accent); }
         .search-btn { padding: 14px 28px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--accent); color: #000; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
         .search-btn:hover { background: #e07226; }
+        .alt-search-btn { background: var(--alt-accent); }
+        .alt-search-btn:hover { background: #9a3de0; }
 
+        /* ── TICKER ── */
         .ticker-container { background: #040407; border: 1px solid var(--border); border-radius: 6px; padding: 8px 16px; overflow: hidden; display: flex; align-items: center; gap: 15px; }
         .ticker-label { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
-        .ticker-window { overflow: hidden; width: 100%; position: relative; display: flex; }
+        .ticker-window { overflow: hidden; width: 100%; display: flex; }
         .ticker-track { display: flex; gap: 25px; animation: scrollTicker 60s linear infinite; }
         .ticker-track:hover { animation-play-state: paused; }
         .ticker-item { font-size: 11px; color: var(--text-muted); white-space: nowrap; cursor: pointer; font-weight: 600; padding: 4px 10px; background: rgba(255,255,255,0.02); border: 1px solid #101018; border-radius: 4px; }
-        .ticker-item:hover { color: var(--accent); border-color: rgba(255,140,58,0.2); background: rgba(255,140,58,0.04); }
+        .ticker-item:hover { color: var(--accent); border-color: rgba(255,140,58,0.2); }
+        @keyframes scrollTicker { 0%{transform:translateX(0)} 100%{transform:translateX(-33.333%)} }
 
-        @keyframes scrollTicker {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-33.333%); }
-        }
-
+        /* ── CARDS ── */
         .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
         .card { background: var(--bg-card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); transition: transform 0.2s; }
         .card:hover { transform: translateY(-2px); border-color: #333344; }
         .media-container { width: 100%; height: 165px; position: relative; background: #000; overflow: hidden; }
         .media-container img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.2s; }
-        .media-container video,
-        .media-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border: none; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+        .media-container video, .media-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border: none; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
         .media-container.previewing img { opacity: 0; }
-        .media-container.previewing video,
-        .media-container.previewing iframe { opacity: 1; pointer-events: auto; }
+        .media-container.previewing video, .media-container.previewing iframe { opacity: 1; pointer-events: auto; }
         .trt-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 3px; z-index: 2; }
-        .vol-badge { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.75); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; z-index: 2; opacity: 0; transition: opacity 0.2s; letter-spacing: 1px; }
+        .vol-badge { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.75); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; z-index: 2; opacity: 0; transition: opacity 0.2s; }
         .media-container.previewing .vol-badge { opacity: 1; }
         .card h3 { margin: 14px 14px 6px; font-size: 13.5px; line-height: 1.4; flex-grow: 1; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .card h3 a { color: var(--text-main); text-decoration: none; }
@@ -100,395 +107,378 @@
         .card-footer { padding: 0 14px 14px; display: flex; justify-content: space-between; align-items: center; }
         .source-tag { font-size: 10px; font-weight: 700; color: var(--accent); background: rgba(255,140,58,0.05); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,140,58,0.1); cursor: pointer; }
         .date-tag { font-size: 11px; color: var(--text-muted); }
-
         .scroll-indicator { grid-column: 1 / -1; text-align: center; padding: 30px; font-size: 12px; color: var(--text-muted); font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* ── PANELS ── */
+        #mainPanel { display: block; }
+        #altPanel { display: none; }
     </style>
 </head>
 <body>
 
-    <div class="main-content">
-        <a class="banner-link" onclick="switchMatrixPage(1)">
-            <h1>PENTHOUSE</h1>
-        </a>
-        <p class="subtitle">Multi-Source Cross System Matrix</p>
+<div class="main-content">
+    <a class="banner-link" onclick="switchMatrixPage(1)"><h1>PENTHOUSE</h1></a>
+    <p class="subtitle">Multi-Source Cross System Matrix</p>
 
-        <div class="matrix-nav">
-            <div id="tab-page-1" class="nav-tab active-tab" onclick="switchMatrixPage(1)">Matrix Home</div>
-            <div id="tab-page-2" class="nav-tab" onclick="switchMatrixPage(2)">Classic Stars</div>
-            <div id="tab-page-3" class="nav-tab" onclick="switchMatrixPage(3)">Modern Legends</div>
-            <div id="tab-page-4" class="nav-tab" onclick="switchMatrixPage(4)">Brooke Marie</div>
-        </div>
+    <div class="matrix-nav">
+        <div id="tab-1" class="nav-tab active-tab" onclick="switchMatrixPage(1)">Matrix Home</div>
+        <div id="tab-2" class="nav-tab" onclick="switchMatrixPage(2)">Classic Stars</div>
+        <div id="tab-3" class="nav-tab" onclick="switchMatrixPage(3)">Modern Legends</div>
+        <div id="tab-4" class="nav-tab" onclick="switchMatrixPage(4)">Brooke Marie</div>
+        <div id="tab-alt" class="nav-tab alt-tab" onclick="switchToAlt()">&#9889; ALT ZONE</div>
+    </div>
 
+    <!-- ── MAIN PANEL ── -->
+    <div id="mainPanel">
         <div class="control-panel-wrapper">
             <div class="gauge-row">
                 <div class="exact-gauge" id="exactGauge" onclick="toggleExactMode()">
-                    <div class="gauge-pip" id="gaugePip"></div>
+                    <div class="gauge-pip"></div>
                     <span class="gauge-label" id="gaugeLabel">Fuzzy Search</span>
                 </div>
             </div>
-
             <div class="control-panel">
                 <div class="search-row">
-                    <input type="text" id="globalSearch" class="search-box" placeholder='Search across all networks... use "quotes" for exact match' onkeydown="if(event.key === 'Enter') triggerInstantSearch()">
+                    <input type="text" id="globalSearch" class="search-box" placeholder='Search all networks... use "quotes" for exact' onkeydown="if(event.key==='Enter')triggerInstantSearch()">
                     <button class="search-btn" onclick="triggerInstantSearch()">Scan Matrix</button>
                 </div>
                 <div class="sort-row">
                     <span class="sort-label">Sort:</span>
-                    <button class="sort-btn active" id="sort-default" onclick="setSortMode('default', this)">Relevance</button>
-                    <button class="sort-btn" id="sort-duration_desc" onclick="setSortMode('duration_desc', this)">Longest</button>
-                    <button class="sort-btn" id="sort-duration_asc" onclick="setSortMode('duration_asc', this)">Shortest</button>
-                    <button class="sort-btn" id="sort-date_desc" onclick="setSortMode('date_desc', this)">Newest</button>
+                    <button class="sort-btn active" onclick="setSortMode('default',this,'main')">Relevance</button>
+                    <button class="sort-btn" onclick="setSortMode('duration_desc',this,'main')">Longest</button>
+                    <button class="sort-btn" onclick="setSortMode('duration_asc',this,'main')">Shortest</button>
+                    <button class="sort-btn" onclick="setSortMode('date_desc',this,'main')">Newest</button>
                 </div>
             </div>
-
             <div class="ticker-container">
                 <div class="ticker-label">Matrix Streams:</div>
-                <div class="ticker-window">
-                    <div class="ticker-track" id="tickerTrack"></div>
-                </div>
+                <div class="ticker-window"><div class="ticker-track" id="tickerTrack"></div></div>
             </div>
         </div>
-
         <div class="gallery" id="gallery"></div>
         <div class="scroll-indicator" id="scrollStatus">Scroll down to load more content</div>
     </div>
 
-    <div class="right-sidebar">
+    <!-- ── ALT PANEL ── -->
+    <div id="altPanel">
+        <div class="control-panel-wrapper">
+            <div class="gauge-row">
+                <div class="exact-gauge" id="altExactGauge" onclick="toggleAltExactMode()">
+                    <div class="gauge-pip"></div>
+                    <span class="gauge-label" id="altGaugeLabel">Fuzzy Search</span>
+                </div>
+            </div>
+            <div class="control-panel" style="border-color: rgba(185,79,255,0.2);">
+                <div class="search-row">
+                    <input type="text" id="altSearch" class="search-box" placeholder='Search BDSM, Trans, Fetish... "quotes" for exact' onkeydown="if(event.key==='Enter')triggerAltSearch()">
+                    <button class="search-btn alt-search-btn" onclick="triggerAltSearch()">Scan ALT</button>
+                </div>
+                <div class="sort-row">
+                    <span class="sort-label">Sort:</span>
+                    <button class="sort-btn active" onclick="setSortMode('default',this,'alt')">Relevance</button>
+                    <button class="sort-btn" onclick="setSortMode('duration_desc',this,'alt')">Longest</button>
+                    <button class="sort-btn" onclick="setSortMode('duration_asc',this,'alt')">Shortest</button>
+                    <button class="sort-btn" onclick="setSortMode('date_desc',this,'alt')">Newest</button>
+                </div>
+            </div>
+        </div>
+        <div class="gallery" id="altGallery"></div>
+        <div class="scroll-indicator" id="altScrollStatus">Search above to load ALT content</div>
+    </div>
+</div>
+
+<!-- ── SIDEBAR ── -->
+<div class="right-sidebar" id="rightSidebar">
+    <div id="mainSidebar">
         <h4>All Network Destinations</h4>
-        <ul class="sidebar-list" id="sidebarNetworkContainer">
-            <li id="all-tubes-btn" class="active-tube" onclick="filterByActiveSite('All')">
-                <span>ALL DISCOVERED TRACKS</span> <span class="counter-badge" id="total-count-badge">0</span>
+        <ul class="sidebar-list" id="sidebarList">
+            <li id="all-tubes-btn" class="active-tube" onclick="filterByActiveSite('All','main')">
+                <span>ALL DISCOVERED TRACKS</span><span class="counter-badge" id="total-count-badge">0</span>
             </li>
             {% for network in networks %}
-                <li id="sidebar-node-{{ loop.index }}" onclick="filterByActiveSite('{{ network }}')">
-                    <span>{{ network }}</span> <span class="counter-badge" id="badge-{{ network | replace('/', '-') | replace('.', '-') | replace(' ', '-') }}">0</span>
-                </li>
+            <li onclick="filterByActiveSite('{{ network }}','main')">
+                <span>{{ network }}</span><span class="counter-badge" id="badge-{{ network|replace('/','-')|replace('.','-')|replace(' ','-') }}">0</span>
+            </li>
             {% endfor %}
         </ul>
     </div>
+    <div id="altSidebar">
+        <h4 class="alt-head">&#9889; ALT Network Sources</h4>
+        <ul class="sidebar-list" id="altSidebarList">
+            <li id="alt-all-btn" class="active-tube" onclick="filterByActiveSite('All','alt')">
+                <span>ALL ALT TRACKS</span><span class="counter-badge" id="alt-total-badge">0</span>
+            </li>
+            {% for network in alt_networks %}
+            <li onclick="filterByActiveSite('{{ network }}','alt')">
+                <span>{{ network }}</span><span class="counter-badge" id="alt-badge-{{ network|replace('/','-')|replace('.','-')|replace(' ','-')|replace('.','-') }}">0</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
 
-    <script>
-        let visualRegistryPool = [];
-        let chosenSiteFilter = "All";
-        let activePageCursor = 1;
-        let blockScrollTrigger = false;
-        let completelyExhausted = false;
-        let currentActiveMatrixPage = 1;
-        let exactMode = false;
-        let currentSortMode = 'default';
+<script>
+// ── STATE ────────────────────────────────────────────────
+const state = {
+    main: { pool: [], page: 1, exhausted: false, filter: 'All', sort: 'default', exact: false, blocked: false },
+    alt:  { pool: [], page: 1, exhausted: false, filter: 'All', sort: 'default', exact: false, blocked: false },
+};
+let activeZone = 'main';
+let currentMatrixPage = 1;
 
-        // ── EXACT GAUGE ──────────────────────────────────────────────
-        function toggleExactMode() {
-            exactMode = !exactMode;
-            const gauge = document.getElementById('exactGauge');
-            const label = document.getElementById('gaugeLabel');
-            gauge.classList.toggle('gauge-active', exactMode);
-            label.textContent = exactMode ? 'Exact Phrase' : 'Fuzzy Search';
-            const box = document.getElementById('globalSearch');
-            let val = box.value.trim().replace(/^["']|["']$/g, '');
-            box.value = exactMode ? `"${val}"` : val;
+// ── GAUGE ─────────────────────────────────────────────────
+function toggleExactMode() { toggleGauge('main'); }
+function toggleAltExactMode() { toggleGauge('alt'); }
+function toggleGauge(zone) {
+    state[zone].exact = !state[zone].exact;
+    const id = zone === 'main' ? 'exactGauge' : 'altExactGauge';
+    const lid = zone === 'main' ? 'gaugeLabel' : 'altGaugeLabel';
+    document.getElementById(id).classList.toggle('gauge-active', state[zone].exact);
+    document.getElementById(lid).textContent = state[zone].exact ? 'Exact Phrase' : 'Fuzzy Search';
+    const boxId = zone === 'main' ? 'globalSearch' : 'altSearch';
+    const box = document.getElementById(boxId);
+    let val = box.value.trim().replace(/^["']|["']$/g, '');
+    box.value = state[zone].exact ? `"${val}"` : val;
+}
+function syncGauge(zone, raw) {
+    const hasQ = (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"));
+    if (hasQ !== state[zone].exact) {
+        state[zone].exact = hasQ;
+        const id = zone === 'main' ? 'exactGauge' : 'altExactGauge';
+        const lid = zone === 'main' ? 'gaugeLabel' : 'altGaugeLabel';
+        document.getElementById(id).classList.toggle('gauge-active', hasQ);
+        document.getElementById(lid).textContent = hasQ ? 'Exact Phrase' : 'Fuzzy Search';
+    }
+}
+function getQuery(zone) {
+    const raw = document.getElementById(zone === 'main' ? 'globalSearch' : 'altSearch').value.trim();
+    syncGauge(zone, raw);
+    return raw;
+}
+
+// ── SORT ──────────────────────────────────────────────────
+function setSortMode(mode, btn, zone) {
+    state[zone].sort = mode;
+    const panel = zone === 'main' ? 'mainPanel' : 'altPanel';
+    document.querySelectorAll(`#${panel} .sort-btn`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const galleryId = zone === 'main' ? 'gallery' : 'altGallery';
+    document.getElementById(galleryId).innerHTML = '';
+    appendItems(sorted(state[zone].pool, mode), zone);
+}
+function sorted(pool, mode) {
+    let p = [...pool];
+    if (mode === 'duration_desc') p.sort((a,b)=>(b.duration||0)-(a.duration||0));
+    else if (mode === 'duration_asc') p.sort((a,b)=>(a.duration||0)-(b.duration||0));
+    else if (mode === 'date_desc') p.sort((a,b)=>(b.added_date||'').localeCompare(a.added_date||''));
+    return p;
+}
+
+// ── TABS ──────────────────────────────────────────────────
+const TICKER_PHRASES = [
+    "daddy kink","stepdaughter joi","taboo daddy daughter","daddy's little accomplice",
+    "stepdaughter helps daddy","taboo stepfamily joi","daddy's girl dirty talk",
+    "stepfamily joi","ddlg little space","stepdad fantasy","daddy controls my orgasm",
+    "our taboo secret","adult little girl","caregiver little","stepmom joi"
+];
+
+function initTicker() {
+    const set = [...TICKER_PHRASES,...TICKER_PHRASES,...TICKER_PHRASES];
+    document.getElementById('tickerTrack').innerHTML = set.map(t=>
+        `<span class="ticker-item" onclick="applyTicker('${t}')">${t.toUpperCase()}</span>`
+    ).join('');
+}
+
+function applyTicker(val) {
+    switchMatrixPage(1);
+    document.getElementById('globalSearch').value = val;
+    runSearch('main', val, true);
+}
+
+function switchMatrixPage(n) {
+    currentMatrixPage = n;
+    activeZone = 'main';
+    document.getElementById('mainPanel').style.display = 'block';
+    document.getElementById('altPanel').style.display = 'none';
+    document.getElementById('mainSidebar').style.display = 'block';
+    document.getElementById('altSidebar').style.display = 'none';
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active-tab'));
+    document.getElementById(`tab-${n}`)?.classList.add('active-tab');
+    let q = '';
+    if (n===2) q = 'ginger lynn, christy canyon, lacey rose, kasey kox';
+    else if (n===3) q = 'bree olsen, riley reid';
+    else if (n===4) q = 'brooke marie';
+    document.getElementById('globalSearch').value = q;
+    runSearch('main', q, true);
+}
+
+function switchToAlt() {
+    activeZone = 'alt';
+    document.getElementById('mainPanel').style.display = 'none';
+    document.getElementById('altPanel').style.display = 'block';
+    document.getElementById('mainSidebar').style.display = 'none';
+    document.getElementById('altSidebar').style.display = 'block';
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active-tab'));
+    document.getElementById('tab-alt').classList.add('active-tab');
+}
+
+function triggerInstantSearch() { currentMatrixPage = 1; document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active-tab')); runSearch('main', getQuery('main'), true); }
+function triggerAltSearch() { runSearch('alt', getQuery('alt'), true); }
+
+// ── FETCH ─────────────────────────────────────────────────
+const FORBIDDEN = ["feet","foot","toes","footjob","shrimping","oralfoot","gay","twink","twinks"];
+
+async function runSearch(zone, query, flush=false) {
+    if (FORBIDDEN.some(w => query.toLowerCase().includes(w))) {
+        document.getElementById(zone==='main'?'globalSearch':'altSearch').value = '';
+        return;
+    }
+    const s = state[zone];
+    if (flush) { s.pool=[]; s.page=1; s.exhausted=false; s.blocked=false; document.getElementById(zone==='main'?'gallery':'altGallery').innerHTML=''; document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Loading…'; }
+    if (s.blocked || s.exhausted) return;
+    s.blocked = true;
+
+    const endpoint = zone === 'alt' ? '/alt_search' : '/fast_search';
+    let url = `${endpoint}?query=${encodeURIComponent(query)}&page=${s.page}&sort=${s.sort}`;
+    if (s.filter !== 'All') url += `&source=${encodeURIComponent(s.filter)}`;
+
+    try {
+        const batch = await (await fetch(url)).json();
+        if (!Array.isArray(batch) || !batch.length) {
+            if (!s.pool.length) document.getElementById(zone==='main'?'gallery':'altGallery').innerHTML='<p style="text-align:center;color:var(--text-muted);grid-column:1/-1;padding:60px;">No results found.</p>';
+            s.exhausted = true;
+            document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='END OF RESULTS';
+            s.blocked = false;
+            updateSidebar(zone);
+            return;
         }
+        const seen = new Set(s.pool.map(r=>r.url));
+        const newItems = batch.filter(r=>r.title&&r.url&&!seen.has(r.url));
+        s.pool = [...s.pool, ...newItems];
+        updateSidebar(zone);
+        appendItems(sorted(newItems, s.sort), zone);
+        s.page++;
+        s.blocked = false;
+        document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Scroll down to load more';
+    } catch(e) {
+        document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Error loading results';
+        s.blocked = false;
+    }
+}
 
-        function syncGaugeToQuery(raw) {
-            const hasQuotes = (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"));
-            if (hasQuotes !== exactMode) {
-                exactMode = hasQuotes;
-                document.getElementById('exactGauge').classList.toggle('gauge-active', exactMode);
-                document.getElementById('gaugeLabel').textContent = exactMode ? 'Exact Phrase' : 'Fuzzy Search';
-            }
-        }
-
-        function getSearchQuery() {
-            const raw = document.getElementById('globalSearch').value.trim();
-            syncGaugeToQuery(raw);
-            return raw;
-        }
-
-        // ── SORT ─────────────────────────────────────────────────────
-        function setSortMode(mode, btn) {
-            currentSortMode = mode;
-            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            // Re-render with sorted pool (frontend sort for already-loaded items)
-            const gallery = document.getElementById('gallery');
-            gallery.innerHTML = '';
-            appendItemsToGrid(getSortedPool(visualRegistryPool));
-        }
-
-        function getSortedPool(pool) {
-            let p = [...pool];
-            if (currentSortMode === 'duration_desc') p.sort((a,b) => (b.duration||0) - (a.duration||0));
-            else if (currentSortMode === 'duration_asc') p.sort((a,b) => (a.duration||0) - (b.duration||0));
-            else if (currentSortMode === 'date_desc') p.sort((a,b) => (b.added_date||'').localeCompare(a.added_date||''));
-            return p;
-        }
-
-        // ── TABS ─────────────────────────────────────────────────────
-        const FORBIDDEN_CHECK = ["feet", "foot", "toes", "footjob", "shrimping", "oralfoot"];
-
-        const TICKER_TARGET_PHRASES = [
-            "daddy kink", "stepdaughter joi", "taboo daddy daughter joi",
-            "daddy's little accomplice", "stepdaughter helps daddy cum",
-            "daddy makes stepdaughter say pussy", "taboo stepfamily secret joi",
-            "daddy's girl dirty talk joi", "stepfamily joi daddy", "ddlg little space",
-            "stepdad fantasy", "daddy controls my orgasm", "our taboo secret",
-            "adult little girl", "stepdaughter pussy joi", "caregiver little"
-        ];
-
-        function initTickerTrack() {
-            const track = document.getElementById('tickerTrack');
-            const dynamicSet = [...TICKER_TARGET_PHRASES, ...TICKER_TARGET_PHRASES, ...TICKER_TARGET_PHRASES];
-            track.innerHTML = dynamicSet.map(term => `
-                <span class="ticker-item" onclick="applyTicker('${term}')">${term.toUpperCase()}</span>
-            `).join('');
-        }
-
-        function applyTicker(val) {
-            currentActiveMatrixPage = 1;
-            updateTabHighlightStates();
-            document.getElementById('globalSearch').value = val;
-            executeSearchStream(val, true);
-        }
-
-        function triggerInstantSearch() {
-            currentActiveMatrixPage = 1;
-            updateTabHighlightStates();
-            executeSearchStream(getSearchQuery(), true);
-        }
-
-        function switchMatrixPage(pageNumber) {
-            currentActiveMatrixPage = pageNumber;
-            updateTabHighlightStates();
-            let targetQuery = "";
-            if (pageNumber === 2) targetQuery = "ginger lynn, christy canyon, lacey rose, kasey kox";
-            else if (pageNumber === 3) targetQuery = "bree olsen, riley reid";
-            else if (pageNumber === 4) targetQuery = "brooke marie";
-            document.getElementById('globalSearch').value = targetQuery;
-            executeSearchStream(targetQuery, true);
-        }
-
-        function updateTabHighlightStates() {
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active-tab'));
-            const t = document.getElementById(`tab-page-${currentActiveMatrixPage}`);
-            if (t) t.classList.add('active-tab');
-        }
-
-        // ── SEARCH ENGINE ─────────────────────────────────────────────
-        async function executeSearchStream(query, flushExisting = false) {
-            if (flushExisting) {
-                activePageCursor = 1;
-                visualRegistryPool = [];
-                completelyExhausted = false;
-                document.getElementById('gallery').innerHTML = '';
-                document.getElementById('scrollStatus').textContent = 'Loading…';
-            }
-
-            if (FORBIDDEN_CHECK.some(t => query.toLowerCase().includes(t))) {
-                document.getElementById('globalSearch').value = '';
-                return;
-            }
-
-            blockScrollTrigger = true;
-
-            try {
-                let url = `/fast_search?query=${encodeURIComponent(query)}&page=${activePageCursor}&sort=${currentSortMode}`;
-                if (chosenSiteFilter && chosenSiteFilter !== "All") {
-                    url += `&source=${encodeURIComponent(chosenSiteFilter)}`;
-                }
-
-                const res = await fetch(url);
-                const incomingBatch = await res.json();
-
-                if (!Array.isArray(incomingBatch) || incomingBatch.length === 0) {
-                    if (visualRegistryPool.length === 0) {
-                        document.getElementById('gallery').innerHTML =
-                            '<p style="text-align:center;color:var(--text-muted);grid-column:1/-1;padding:60px;">No results found.</p>';
-                    }
-                    completelyExhausted = true;
-                    document.getElementById('scrollStatus').textContent = 'END OF RESULTS';
-                    blockScrollTrigger = false;
-                    updateSidebarCounters();
-                    return;
-                }
-
-                // Merge, deduplicate by url
-                const existingUrls = new Set(visualRegistryPool.map(r => r.url));
-                const newItems = incomingBatch.filter(r => r.title && r.url && !existingUrls.has(r.url));
-                visualRegistryPool = [...visualRegistryPool, ...newItems];
-                updateSidebarCounters();
-                appendItemsToGrid(getSortedPool(newItems));
-                activePageCursor++;
-                blockScrollTrigger = false;
-                document.getElementById('scrollStatus').textContent = 'Scroll down to load more content';
-            } catch (err) {
-                console.error(err);
-                document.getElementById('scrollStatus').textContent = 'Error loading results';
-                blockScrollTrigger = false;
-            }
-        }
-
-        // ── SIDEBAR ───────────────────────────────────────────────────
-        function updateSidebarCounters() {
-            let dist = {}, total = 0;
-            visualRegistryPool.forEach(item => {
-                total++;
-                dist[item.source] = (dist[item.source] || 0) + 1;
-            });
-            document.getElementById('total-count-badge').textContent = total;
-            document.querySelectorAll('.sidebar-list li:not(#all-tubes-btn)').forEach(li => {
-                const badge = li.querySelector('.counter-badge');
-                const site = li.querySelector('span').textContent.trim();
-                badge.textContent = dist[site] || 0;
-            });
-        }
-
-        function filterByActiveSite(siteName) {
-            chosenSiteFilter = siteName;
-            document.querySelectorAll('.sidebar-list li').forEach(el => {
-                el.classList.remove('active-tube');
-                const txt = el.querySelector('span').textContent.trim().toLowerCase();
-                if (txt === siteName.toLowerCase() || (siteName === "All" && txt === "all discovered tracks")) {
-                    el.classList.add('active-tube');
-                }
-            });
-            const gallery = document.getElementById('gallery');
-            gallery.innerHTML = '';
-            appendItemsToGrid(getSortedPool(visualRegistryPool));
-        }
-
-        // ── GRID ──────────────────────────────────────────────────────
-        function getEmbedUrl(v) {
-            const url = v.url || '';
-            const src = (v.source || '').toLowerCase();
-            if (src === 'eporner') {
-                const m = url.match(/\/video-([a-zA-Z0-9]+)-/);
-                return m ? `https://www.eporner.com/embed/${m[1]}/` : null;
-            }
-            if (src === 'xvideos') {
-                const m = url.match(/\/video(\d+)\//);
-                return m ? `https://www.xvideos.com/embedframe/${m[1]}` : null;
-            }
-            if (src === 'xnxx') {
-                const m = url.match(/\/video-([a-zA-Z0-9]+)\//);
-                return m ? `https://www.xnxx.com/embedframe/${m[1]}` : null;
-            }
-            if (src === 'pornhub') {
-                const m = url.match(/viewkey=([a-zA-Z0-9]+)/);
-                return m ? `https://www.pornhub.com/embed/${m[1]}` : null;
-            }
-            if (src === 'spankbang') {
-                const m = url.match(/spankbang\.com\/([a-z0-9]+)\//);
-                return m ? `https://spankbang.com/${m[1]}/embed/` : null;
-            }
-            if (src === 'xhamster') {
-                const m = url.match(/-(\d+)(?:\/|$)/);
-                return m ? `https://xhamster.com/xembed.php?video=${m[1]}` : null;
-            }
-            if (src === 'beeg') {
-                const m = url.match(/\/(\d+)(?:\/|$)/);
-                return m ? `https://beeg.com/index.php?video=${m[1]}&embed=true` : null;
-            }
-            return null;
-        }
-
-        function attachHoverPreview(mc, v) {
-            let previewEl = null;
-            let hoverTimer = null;
-
-            mc.addEventListener('mouseenter', () => {
-                hoverTimer = setTimeout(() => {
-                    if (previewEl) return;
-                    const directMp4 = v.preview_url || '';
-                    if (directMp4) {
-                        // Direct video file — best quality, volume controllable
-                        const vid = document.createElement('video');
-                        vid.src = directMp4;
-                        vid.autoplay = true;
-                        vid.loop = true;
-                        vid.volume = 0.2;
-                        vid.playsInline = true;
-                        mc.appendChild(vid);
-                        previewEl = vid;
-                    } else {
-                        const embedUrl = getEmbedUrl(v);
-                        if (!embedUrl) return;
-                        const iframe = document.createElement('iframe');
-                        iframe.src = embedUrl + (embedUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-                        iframe.allow = 'autoplay; fullscreen';
-                        iframe.allowFullscreen = true;
-                        mc.appendChild(iframe);
-                        previewEl = iframe;
-                    }
-                    mc.classList.add('previewing');
-                }, 400); // 400ms delay before triggering
-            });
-
-            mc.addEventListener('mouseleave', () => {
-                clearTimeout(hoverTimer);
-                if (previewEl) {
-                    if (previewEl.tagName === 'VIDEO') previewEl.pause();
-                    previewEl.remove();
-                    previewEl = null;
-                }
-                mc.classList.remove('previewing');
-            });
-        }
-
-        function appendItemsToGrid(items) {
-            const gallery = document.getElementById('gallery');
-            const filtered = items.filter(v => {
-                if (!v.title || !v.title.trim() || !v.url) return false;
-                if (chosenSiteFilter === "All") return true;
-                return v.source.toLowerCase() === chosenSiteFilter.toLowerCase();
-            });
-            filtered.forEach(v => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                const safeSource = (v.source || '').replace(/'/g, "\\'");
-                card.innerHTML = `
-                    <div class="media-container">
-                        <img src="${v.thumb || ''}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400';">
-                        <div class="trt-badge">${formatTime(v.duration)}</div>
-                        <div class="vol-badge">&#9654; 20%</div>
-                    </div>
-                    <h3><a href="${v.url}" target="_blank" rel="noopener">${escHtml(v.title)}</a></h3>
-                    <div class="card-footer">
-                        <span class="source-tag" onclick="event.stopPropagation();filterByActiveSite('${safeSource}')">${escHtml(v.source)}</span>
-                        <span class="date-tag">${v.added_date ? v.added_date.slice(0,10) : 'Live'}</span>
-                    </div>
-                `;
-                const mc = card.querySelector('.media-container');
-                attachHoverPreview(mc, v);
-                gallery.appendChild(card);
-            });
-        }
-
-        function formatTime(sec) {
-            if (!sec) return "10:00";
-            const m = Math.floor(sec / 60), s = sec % 60;
-            return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
-        }
-
-        function escHtml(s) {
-            return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-
-        // ── INFINITE SCROLL ───────────────────────────────────────────
-        window.addEventListener('scroll', () => {
-            if (blockScrollTrigger || completelyExhausted) return;
-            const scrollBottom = window.innerHeight + window.scrollY;
-            const pageHeight = document.documentElement.scrollHeight;
-            if (scrollBottom >= pageHeight - 500) {
-                const q = getSearchQuery();
-                document.getElementById('scrollStatus').textContent = `Loading page ${activePageCursor}…`;
-                executeSearchStream(q, false);
-            }
+// ── SIDEBAR ───────────────────────────────────────────────
+function updateSidebar(zone) {
+    const s = state[zone];
+    let dist={}, total=0;
+    s.pool.forEach(i=>{ total++; dist[i.source]=(dist[i.source]||0)+1; });
+    if (zone==='main') {
+        document.getElementById('total-count-badge').textContent=total;
+        document.querySelectorAll('#sidebarList li:not(#all-tubes-btn)').forEach(li=>{
+            li.querySelector('.counter-badge').textContent=dist[li.querySelector('span').textContent.trim()]||0;
         });
-
-        window.addEventListener('DOMContentLoaded', () => {
-            initTickerTrack();
-            switchMatrixPage(1);
+    } else {
+        document.getElementById('alt-total-badge').textContent=total;
+        document.querySelectorAll('#altSidebarList li:not(#alt-all-btn)').forEach(li=>{
+            li.querySelector('.counter-badge').textContent=dist[li.querySelector('span').textContent.trim()]||0;
         });
-    </script>
+    }
+}
+
+function filterByActiveSite(name, zone) {
+    state[zone].filter = name;
+    const listId = zone==='main' ? 'sidebarList' : 'altSidebarList';
+    const allId = zone==='main' ? 'all-tubes-btn' : 'alt-all-btn';
+    document.querySelectorAll(`#${listId} li`).forEach(el=>{
+        el.classList.remove('active-tube');
+        const txt=el.querySelector('span').textContent.trim().toLowerCase();
+        if (txt===name.toLowerCase()||(name==='All'&&(el.id===allId))) el.classList.add('active-tube');
+    });
+    const gId = zone==='main'?'gallery':'altGallery';
+    document.getElementById(gId).innerHTML='';
+    appendItems(sorted(state[zone].pool, state[zone].sort), zone);
+}
+
+// ── GRID ──────────────────────────────────────────────────
+function getEmbedUrl(v) {
+    const url=v.url||'', src=(v.source||'').toLowerCase();
+    if(src==='eporner'){const m=url.match(/\/video-([a-zA-Z0-9]+)-/);return m?`https://www.eporner.com/embed/${m[1]}/`:null;}
+    if(src==='xvideos'){const m=url.match(/\/video(\d+)\//);return m?`https://www.xvideos.com/embedframe/${m[1]}`:null;}
+    if(src==='xnxx'){const m=url.match(/\/video-([a-zA-Z0-9]+)\//);return m?`https://www.xnxx.com/embedframe/${m[1]}`:null;}
+    if(src==='pornhub'){const m=url.match(/viewkey=([a-zA-Z0-9]+)/);return m?`https://www.pornhub.com/embed/${m[1]}`:null;}
+    if(src==='spankbang'){const m=url.match(/spankbang\.com\/([a-z0-9]+)\//);return m?`https://spankbang.com/${m[1]}/embed/`:null;}
+    if(src==='xhamster'){const m=url.match(/-(\d+)(?:\/|$)/);return m?`https://xhamster.com/xembed.php?video=${m[1]}`:null;}
+    if(src==='beeg'){const m=url.match(/\/(\d+)(?:\/|$)/);return m?`https://beeg.com/index.php?video=${m[1]}&embed=true`:null;}
+    return null;
+}
+
+function attachHoverPreview(mc, v) {
+    let el=null, timer=null;
+    mc.addEventListener('mouseenter',()=>{
+        timer=setTimeout(()=>{
+            if(el) return;
+            if(v.preview_url){
+                const vid=document.createElement('video');
+                vid.src=v.preview_url; vid.autoplay=true; vid.loop=true; vid.volume=0.2; vid.playsInline=true;
+                mc.appendChild(vid); el=vid;
+            } else {
+                const eu=getEmbedUrl(v);
+                if(!eu) return;
+                const iframe=document.createElement('iframe');
+                iframe.src=eu+(eu.includes('?')?'&':'?')+'autoplay=1';
+                iframe.allow='autoplay; fullscreen'; iframe.allowFullscreen=true;
+                mc.appendChild(iframe); el=iframe;
+            }
+            mc.classList.add('previewing');
+        },400);
+    });
+    mc.addEventListener('mouseleave',()=>{
+        clearTimeout(timer);
+        if(el){if(el.tagName==='VIDEO')el.pause();el.remove();el=null;}
+        mc.classList.remove('previewing');
+    });
+}
+
+function appendItems(items, zone) {
+    const gallery=document.getElementById(zone==='main'?'gallery':'altGallery');
+    const filter=state[zone].filter;
+    items.filter(v=>v.title&&v.url&&(filter==='All'||v.source.toLowerCase()===filter.toLowerCase())).forEach(v=>{
+        const card=document.createElement('div'); card.className='card';
+        const ss=(v.source||'').replace(/'/g,"\\'");
+        card.innerHTML=`
+            <div class="media-container">
+                <img src="${v.thumb||''}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400';">
+                <div class="trt-badge">${fmt(v.duration)}</div>
+                <div class="vol-badge">&#9654; 20%</div>
+            </div>
+            <h3><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a></h3>
+            <div class="card-footer">
+                <span class="source-tag" onclick="event.stopPropagation();filterByActiveSite('${ss}','${zone}')">${esc(v.source)}</span>
+                <span class="date-tag">${v.added_date?v.added_date.slice(0,10):'Live'}</span>
+            </div>`;
+        attachHoverPreview(card.querySelector('.media-container'),v);
+        gallery.appendChild(card);
+    });
+}
+
+function fmt(s){if(!s)return"10:00";const m=Math.floor(s/60),ss=s%60;return(m<10?"0":"")+m+":"+(ss<10?"0":"")+ss;}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── SCROLL ────────────────────────────────────────────────
+window.addEventListener('scroll',()=>{
+    const zone=activeZone;
+    const s=state[zone];
+    if(s.blocked||s.exhausted) return;
+    if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-500){
+        const q=getQuery(zone);
+        runSearch(zone,q,false);
+    }
+});
+
+// ── INIT ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+    initTicker();
+    switchMatrixPage(1);
+});
+</script>
 </body>
 </html>
