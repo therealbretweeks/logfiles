@@ -50,7 +50,7 @@ BASE_HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 }
 
-def safe_get(url, extra_headers=None, timeout=4):
+def safe_get(url, extra_headers=None, timeout=2):
     headers = {**BASE_HEADERS, **(extra_headers or {})}
     for attempt in range(3):
         try:
@@ -1271,7 +1271,8 @@ def run_alt_scrape(query, page=1, preferred_source=None, sort_by='default'):
     if len(pool) < need_up_to:
         already = max(len(pool) // max(len(sub_queries), 1) // 25, 0)
         batch_start = already + 1
-        site_pages = list(range(batch_start, batch_start + 10))
+        batch_size = 1 if page == 1 else 3
+        site_pages = list(range(batch_start, batch_start + batch_size))
         aggregated = _do_alt_scrape(sub_queries, site_pages)
         existing_urls = {x["url"] for x in master_db if "url" in x}
         new_records, seen = [], set()
@@ -1304,24 +1305,30 @@ def run_alt_scrape(query, page=1, preferred_source=None, sort_by='default'):
 # ==================== ORCHESTRATION ====================
 
 # All scrapers except SpankBang (handled via bulk)
-SCRAPERS_NO_SB = [
-    scrape_camstreams,
-    scrape_camwhores,
-    scrape_xvideos,
+# Fast tier — known to return results quickly
+SCRAPERS_FAST = [
+    scrape_eporner,
     scrape_xhamster,
+    scrape_xvideos,
     scrape_xnxx,
     scrape_pornhub,
+    scrape_anysex,
+    scrape_perfectgirls,
+    scrape_porntop,
+    scrape_txxx,
+    scrape_camstreams,
+    scrape_camwhores,
+]
+
+# Slow tier — tried on page 2+
+SCRAPERS_SLOW = [
     scrape_beeg,
     scrape_redtube,
     scrape_youporn,
     scrape_tube8,
     scrape_hqporner,
-    scrape_txxx,
-    scrape_eporner,
     scrape_drtuber,
     scrape_tnaflix,
-    scrape_anysex,
-    scrape_perfectgirls,
     scrape_porndoe,
     scrape_xfreehd,
     scrape_fullporner,
@@ -1335,7 +1342,6 @@ SCRAPERS_NO_SB = [
     scrape_pornhoarder,
     scrape_pussyspace,
     scrape_xmoviesforyou,
-    scrape_porntop,
     scrape_pornxp,
     scrape_porn00,
     scrape_freeo,
@@ -1347,6 +1353,8 @@ SCRAPERS_NO_SB = [
     scrape_erome,
     scrape_motherless,
 ]
+
+SCRAPERS_NO_SB = SCRAPERS_FAST + SCRAPERS_SLOW
 
 
 def _collect(futures_with_sq):
@@ -1361,16 +1369,15 @@ def _collect(futures_with_sq):
     return out
 
 
-def _do_scrape(sub_queries, site_pages):
-    """Scrape all sources for given sub_queries across site_pages. Returns new records."""
+def _do_scrape(sub_queries, site_pages, fast_only=False):
+    scrapers = SCRAPERS_FAST if fast_only else SCRAPERS_NO_SB
     with ThreadPoolExecutor(max_workers=32) as executor:
         futures = []
         for sq in sub_queries:
             for pg in site_pages:
-                for scraper in SCRAPERS_NO_SB:
+                for scraper in scrapers:
                     p = pg - 1 if scraper in (scrape_xvideos, scrape_xnxx) else pg
                     futures.append((executor.submit(scraper, sq, p), sq))
-            # SpankBang bulk: one browser for all pages per sub-query
             futures.append((executor.submit(scrape_spankbang_bulk, sq, site_pages), sq))
         return _collect(futures)
 
@@ -1425,9 +1432,12 @@ def run_deep_target_scrape(query, page=1, preferred_source=None, sort_by='defaul
     if len(pool) < need_up_to:
         already = max(len(pool) // max(len(sub_queries), 1) // 25, 0)
         batch_start = already + 1
-        batch_size = 3 if page == 1 else 6
+        # Page 1: 1 site-page, fast scrapers only → results in ~3s
+        # Page 2+: 3 site-pages, all scrapers
+        batch_size = 1 if page == 1 else 3
+        fast_only = (page == 1)
         site_pages = list(range(batch_start, batch_start + batch_size))
-        aggregated = _do_scrape(sub_queries, site_pages)
+        aggregated = _do_scrape(sub_queries, site_pages, fast_only=fast_only)
         new_records = _save_new(aggregated, master_db)
         master_db = load_db()
         pool = _build_pool(master_db, sub_queries, exact, clean)

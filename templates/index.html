@@ -384,9 +384,9 @@ async function runSearch(zone, query, flush=false) {
         s.page++;
         s.blocked = false;
         document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Scroll down to load more';
-        // Keep scraping in background until we have 200+ results
-        if (s.pool.length < 200 && !s.exhausted) {
-            setTimeout(() => runSearch(zone, query, false), 800);
+        // Keep scraping in background only if user is still on this zone
+        if (s.pool.length < 200 && !s.exhausted && activeZone === zone) {
+            setTimeout(() => runSearch(zone, query, false), 1200);
         }
     } catch(e) {
         document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Error loading results';
