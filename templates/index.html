@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>THE PUPPETHOUSE</title>
+    <title>THE PUPPET HOUSE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Alfa+Slab+One&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-base: #020204;
@@ -40,8 +41,12 @@
         .main-content { flex-grow: 1; padding: 30px; max-width: calc(100% - 320px); margin-right: 320px; }
         .banner-link { display: inline-block; width: 100%; text-align: center; text-decoration: none; color: var(--accent); cursor: pointer; user-select: none; transition: transform 0.15s; }
         .banner-link:hover { transform: scale(1.01); }
-        .banner-link h1 { font-size: 40px; letter-spacing: 7px; font-weight: 900; margin: 10px 0 2px; text-shadow: 0 0 12px var(--accent-glow); }
-        p.subtitle { text-align: center; color: var(--text-muted); margin-bottom: 25px; font-size: 11px; text-transform: uppercase; letter-spacing: 4px; }
+        .banner-link h1 { font-family: 'Alfa Slab One', 'Bebas Neue', serif; font-size: 58px; letter-spacing: 12px; font-weight: 400; margin: 10px 0 0; text-shadow: 3px 3px 0px rgba(0,0,0,0.8), 0 0 30px var(--accent-glow); color: var(--accent); text-transform: uppercase; }
+        p.subtitle { text-align: center; color: var(--text-muted); margin: 4px 0 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 6px; font-family: 'Bebas Neue', sans-serif; }
+        .view-modes { text-align: center; margin-bottom: 20px; font-size: 11px; letter-spacing: 2px; }
+        .view-modes a { color: var(--text-muted); text-decoration: none; text-transform: uppercase; cursor: pointer; padding: 4px 10px; transition: color 0.2s; font-weight: 700; }
+        .view-modes a:hover, .view-modes a.active-view { color: var(--accent); }
+        .view-modes span { color: #222230; }
 
         /* ── TABS ── */
         .matrix-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; }
@@ -89,10 +94,35 @@
         .ticker-item:hover { color: var(--accent); border-color: rgba(255,140,58,0.2); }
         @keyframes scrollTicker { 0%{transform:translateX(0)} 100%{transform:translateX(-33.333%)} }
 
-        /* ── CARDS ── */
-        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        /* ── VIEW MODES ── */
+        .gallery { display: grid; gap: 12px; }
+        .gallery.view-icons { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+        .gallery.view-gallery { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .gallery.view-text { display: block; }
+
+        /* Tube section separator */
+        .tube-section { margin-bottom: 10px; }
+        .tube-section-header { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); padding: 10px 0 6px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .tube-section-header:hover { color: var(--accent); }
+        .tube-section-header .tube-count { font-size: 9px; color: #333344; }
+        .tube-section-grid { display: grid; gap: 12px; }
+        .view-icons .tube-section-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+        .view-gallery .tube-section-grid { grid-template-columns: repeat(4, 1fr); }
+        .view-text .tube-section-grid { display: block; }
         .card { background: var(--bg-card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); transition: transform 0.2s; }
         .card:hover { transform: translateY(-2px); border-color: #333344; }
+        .view-gallery .card .media-container { height: 160px; }
+        .view-gallery .card h3 { font-size: 12px; margin: 8px 10px 5px; }
+        /* Text view card */
+        .view-text .card { flex-direction: row; align-items: center; border-radius: 6px; margin-bottom: 4px; background: transparent; border-color: transparent; border-bottom: 1px solid var(--border); }
+        .view-text .card:hover { background: rgba(255,140,58,0.03); border-color: transparent; border-bottom-color: var(--border); transform: none; }
+        .view-text .card .media-container { width: 80px; height: 50px; flex-shrink: 0; border-radius: 4px; overflow: hidden; position: relative; }
+        .view-text .card h3 { font-size: 12px; margin: 0 10px; flex-grow: 1; -webkit-line-clamp: 1; }
+        .view-text .card .card-footer { padding: 0 8px 0 0; flex-shrink: 0; gap: 8px; }
+        .view-text .card .trt-badge { font-size: 9px; }
+        /* Text view hover thumb popup */
+        .thumb-popup { position: fixed; width: 200px; height: 120px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); pointer-events: none; z-index: 9999; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.8); }
+        .thumb-popup img { width: 100%; height: 100%; object-fit: cover; }
         .media-container { width: 100%; height: 85px; position: relative; background: #0a0a0f; overflow: hidden; }
         .media-container::before { content:''; position:absolute; inset:0; background: linear-gradient(90deg,#0f0f14 25%,#1a1a24 50%,#0f0f14 75%); background-size:200% 100%; animation: shimmer 1.2s infinite; z-index:0; }
         .media-container.loaded::before { display:none; }
@@ -121,8 +151,15 @@
 <body>
 
 <div class="main-content">
-    <a class="banner-link" onclick="switchMatrixPage(1)"><h1>PENTHOUSE</h1></a>
-    <p class="subtitle">Multi-Source Cross System Matrix</p>
+    <a class="banner-link" onclick="switchMatrixPage(1)"><h1>THE PUPPET HOUSE</h1></a>
+    <p class="subtitle">Multi-Source Cross-System Matrix</p>
+    <div class="view-modes">
+        <a id="vm-text" onclick="setView('text')">Text</a>
+        <span>·</span>
+        <a id="vm-icons" class="active-view" onclick="setView('icons')">Small Icons</a>
+        <span>·</span>
+        <a id="vm-gallery" onclick="setView('gallery')">Gallery</a>
+    </div>
 
     <div class="matrix-nav">
         <div id="tab-1" class="nav-tab active-tab" onclick="switchMatrixPage(1)">Matrix Home</div>
@@ -466,25 +503,82 @@ function attachHoverPreview(mc, v) {
     });
 }
 
+let currentView = 'icons';
+
+function setView(v) {
+    currentView = v;
+    ['text','icons','gallery'].forEach(m => {
+        document.getElementById('vm-'+m).classList.toggle('active-view', m===v);
+    });
+    ['gallery','altGallery'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.classList.remove('view-text','view-icons','view-gallery'); el.classList.add('view-'+v); }
+    });
+}
+
+function makeCard(v, zone) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const ss = (v.source||'').replace(/'/g,"\\'");
+    const thumb = v.thumb || '';
+    card.innerHTML = `
+        <div class="media-container">
+            <img src="${thumb}" alt="" loading="lazy" onload="this.closest('.media-container').classList.add('loaded')" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>';this.closest('.media-container').classList.add('loaded');">
+            <div class="trt-badge">${fmt(v.duration)}</div>
+            <div class="vol-badge">&#9654; 20%</div>
+        </div>
+        <h3><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a></h3>
+        <div class="card-footer">
+            <span class="source-tag" onclick="event.stopPropagation();filterByActiveSite('${ss}','${zone}')">${esc(v.source)}</span>
+            <span class="date-tag">${v.added_date?v.added_date.slice(0,10):'Live'}</span>
+        </div>`;
+    if (currentView !== 'text') {
+        attachHoverPreview(card.querySelector('.media-container'), v);
+    } else {
+        // Text view: show popup thumb on hover
+        const mc = card.querySelector('.media-container');
+        const popup = document.getElementById('thumbPopup');
+        const popImg = document.getElementById('thumbPopupImg');
+        mc.addEventListener('mouseenter', e => {
+            if (!thumb) return;
+            popImg.src = thumb;
+            popup.style.display = 'block';
+        });
+        mc.addEventListener('mousemove', e => {
+            popup.style.left = (e.clientX + 16) + 'px';
+            popup.style.top = (e.clientY - 60) + 'px';
+        });
+        mc.addEventListener('mouseleave', () => { popup.style.display = 'none'; });
+    }
+    return card;
+}
+
 function appendItems(items, zone) {
-    const gallery=document.getElementById(zone==='main'?'gallery':'altGallery');
-    const filter=state[zone].filter;
-    items.filter(v=>v.title&&v.url&&(filter==='All'||v.source.toLowerCase()===filter.toLowerCase())).forEach(v=>{
-        const card=document.createElement('div'); card.className='card';
-        const ss=(v.source||'').replace(/'/g,"\\'");
-        card.innerHTML=`
-            <div class="media-container">
-                <img src="${v.thumb||''}" alt="" loading="lazy" onload="this.closest('.media-container').classList.add('loaded')" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>';this.closest('.media-container').classList.add('loaded');">
-                <div class="trt-badge">${fmt(v.duration)}</div>
-                <div class="vol-badge">&#9654; 20%</div>
-            </div>
-            <h3><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a></h3>
-            <div class="card-footer">
-                <span class="source-tag" onclick="event.stopPropagation();filterByActiveSite('${ss}','${zone}')">${esc(v.source)}</span>
-                <span class="date-tag">${v.added_date?v.added_date.slice(0,10):'Live'}</span>
-            </div>`;
-        attachHoverPreview(card.querySelector('.media-container'),v);
-        gallery.appendChild(card);
+    const gallery = document.getElementById(zone==='main'?'gallery':'altGallery');
+    if (!gallery.classList.contains('view-'+currentView)) {
+        gallery.classList.remove('view-text','view-icons','view-gallery');
+        gallery.classList.add('view-'+currentView);
+    }
+    const filter = state[zone].filter;
+    const filtered = items.filter(v => v.title && v.url && (filter==='All' || v.source.toLowerCase()===filter.toLowerCase()));
+
+    // Group by source
+    const bySource = {};
+    filtered.forEach(v => { (bySource[v.source] = bySource[v.source]||[]).push(v); });
+
+    Object.entries(bySource).forEach(([src, vids]) => {
+        let section = gallery.querySelector(`.tube-section[data-src="${CSS.escape(src)}"]`);
+        if (!section) {
+            section = document.createElement('div');
+            section.className = 'tube-section';
+            section.dataset.src = src;
+            section.innerHTML = `<div class="tube-section-header" onclick="filterByActiveSite('${src.replace(/'/g,"\\'")}','${zone}')"><span>${esc(src)}</span><span class="tube-count"></span></div><div class="tube-section-grid"></div>`;
+            gallery.appendChild(section);
+        }
+        const grid = section.querySelector('.tube-section-grid');
+        const countEl = section.querySelector('.tube-count');
+        vids.forEach(v => grid.appendChild(makeCard(v, zone)));
+        countEl.textContent = grid.children.length;
     });
 }
 
@@ -504,9 +598,11 @@ window.addEventListener('scroll',()=>{
 
 // ── INIT ──────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
+    setView('icons');
     initTicker();
     switchMatrixPage(1);
 });
 </script>
+<div class="thumb-popup" id="thumbPopup"><img id="thumbPopupImg" src="" alt=""></div>
 </body>
 </html>
