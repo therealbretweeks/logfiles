@@ -326,13 +326,16 @@ function switchToAlt() {
 function triggerInstantSearch() { currentMatrixPage = 1; document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active-tab')); runSearch('main', getQuery('main'), true); }
 
 async function clearAllDbs() {
-    if (!confirm('Clear all cached results? Fresh scrapes will run on next search.')) return;
+    if (!confirm('Clear all cached results? Will re-scrape automatically.')) return;
     await fetch('/clear_db', { method: 'POST' });
     state.main.pool = []; state.main.page = 1; state.main.exhausted = false;
     state.alt.pool = []; state.alt.page = 1; state.alt.exhausted = false;
     document.getElementById('gallery').innerHTML = '';
     document.getElementById('altGallery').innerHTML = '';
-    alert('DB cleared. Run a search to pull fresh results.');
+    // Auto re-search current zone
+    const zone = activeZone;
+    const q = getQuery(zone);
+    runSearch(zone, q, true);
 }
 function triggerAltSearch() { runSearch('alt', getQuery('alt'), true); }
 
@@ -371,6 +374,10 @@ async function runSearch(zone, query, flush=false) {
         s.page++;
         s.blocked = false;
         document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Scroll down to load more';
+        // Keep scraping in background until we have 200+ results
+        if (s.pool.length < 200 && !s.exhausted) {
+            setTimeout(() => runSearch(zone, query, false), 800);
+        }
     } catch(e) {
         document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Error loading results';
         s.blocked = false;
