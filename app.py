@@ -19,16 +19,17 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, "db.json")
 
-TUBE_DOMAINS = [
-    "Beeg", "XVideos", "XNXX", "Pornhub", "xHamster", "Eporner", "SpankBang",
-    "HQporner", "PornTrex", "RedTube", "YouPorn", "YouJizz", "Tube8", "Motherless",
-    "TXXX", "DrTuber", "AnySex", "Perfect Girls", "PornDoe", "PornDig", "PornHoarder",
-    "XXXFiles", "TNAFlix", "PussySpace", "FullPorner", "ParadiseHill", "XFreeHD",
-    "Porn300", "PornoBae", "LetsJerk", "WatchXXXFree", "4kPorn", "YourPorn",
-    "XMoviesForYou", "PornHat", "PornDish", "Porn4Days", "TrendyPorn", "PornSlash",
-    "EroMe", "PornGo", "PornTop", "PornXP", "NetFapX", "FreeoMovie", "InPorn",
-    "WatchPorn", "OK.xxx", "Porn00", "JustPorn", "WhoresHub", "CamStreams"
-]
+TUBE_DOMAINS = sorted([
+    "4kPorn", "AnySex", "Beeg", "CamStreams", "CamWhores", "DrTuber", "EroMe",
+    "Eporner", "FreeoMovie", "FullPorner", "HQporner", "InPorn", "JustPorn",
+    "LetsJerk", "Motherless", "NetFapX", "OK.xxx", "ParadiseHill", "Perfect Girls",
+    "Porn00", "Porn300", "Porn4Days", "PornDig", "PornDish", "PornDoe", "PornGo",
+    "PornHat", "PornHoarder", "PornSlash", "PornTop", "PornTrex", "PornXP",
+    "PornoBae", "Pornhub", "PussySpace", "RedTube", "SpankBang", "TNAFlix",
+    "TXXX", "Tube8", "TrendyPorn", "WatchPorn", "WatchXXXFree", "WhoresHub",
+    "XFreeHD", "XNXX", "XMoviesForYou", "XVideos", "XXXFiles", "YouJizz",
+    "YouPorn", "YourPorn", "xHamster",
+], key=lambda x: x.lower())
 
 FORBIDDEN_WORDS = [
     "feet", "foot", "toes", "footjob", "shrimping", "oralfoot",
@@ -458,41 +459,29 @@ def scrape_beeg(q, page=1):
 def scrape_camstreams(q, page=1):
     results = []
     try:
-        # Try multiple URL patterns
         for url in [
+            f"https://camstreams.tv/search/{requests.utils.quote(q)}/videos/{page}/",
             f"https://www.camstreams.tv/search/?q={requests.utils.quote(q)}&page={page}",
-            f"https://www.camstreams.tv/?s={requests.utils.quote(q)}&page={page}",
+            f"https://camstreams.tv/?s={requests.utils.quote(q)}",
         ]:
-            res = safe_get(url)
+            res = safe_get(url, extra_headers={'Referer': 'https://camstreams.tv/'})
             if not res or res.status_code != 200:
                 continue
             soup = BeautifulSoup(res.text, 'html.parser')
-            # Try multiple selectors
-            candidates = (
-                soup.select('.video-thumb, .video-card, .thumb-block, .model-card, .stream-card') or
-                soup.select('article') or
-                soup.select('[class*="video"], [class*="thumb"], [class*="stream"]')
-            )
             seen = set()
-            for item in candidates:
+            for item in soup.select('.thumb, .video-item, .item, article, [class*="thumb"], [class*="video"]'):
                 try:
                     link_el = item.find('a', href=True)
                     if not link_el:
                         continue
                     href = link_el.get('href', '').strip()
-                    if not href or href in ('/', '#'):
+                    if not href or href in ('/', '#') or any(x in href for x in ['/tag/', '/cat/', '/page/']):
                         continue
-                    # Skip navigation/header links
-                    if any(x in href for x in ['/category/', '/tag/', '/page/', '?page=']):
-                        continue
-                    full_url = href if href.startswith('http') else ('https://www.camstreams.tv' + href)
+                    full_url = href if href.startswith('http') else 'https://camstreams.tv' + href
                     if full_url in seen:
                         continue
                     seen.add(full_url)
-                    title = (link_el.get('title') or '').strip()
-                    if not title:
-                        title_el = item.select_one('.title, h2, h3, h4, [class*="name"], [class*="title"]')
-                        title = safe_get_text(title_el)
+                    title = (link_el.get('title') or safe_get_text(item.select_one('.title, h3, h4, [class*="title"]'))).strip()
                     if not title:
                         continue
                     img_el = item.find('img')
@@ -510,15 +499,45 @@ def scrape_camstreams(q, page=1):
 
 
 def scrape_camwhores(q, page=1):
-    return _generic_scrape(q, page,
-        'https://camwhores.tv',
-        f'https://camwhores.tv/search/{requests.utils.quote(q)}/{page}/',
-        'CamWhores',
-        '.thumb-block, .video-item, article',
-        '.title a, h3 a, .video-title',
-        'a[href]',
-        'img[data-src], img[src]',
-        '.duration')
+    results = []
+    try:
+        for url in [
+            f"https://www.camwhores.tv/search/{requests.utils.quote(q)}/videos/{page}/",
+            f"https://camwhores.tv/search/?q={requests.utils.quote(q)}&page={page}",
+        ]:
+            res = safe_get(url, extra_headers={'Referer': 'https://camwhores.tv/'})
+            if not res or res.status_code != 200:
+                continue
+            soup = BeautifulSoup(res.text, 'html.parser')
+            seen = set()
+            for item in soup.select('.thumb, .video-item, .item, article, [class*="thumb"], [class*="video"]'):
+                try:
+                    link_el = item.find('a', href=True)
+                    if not link_el:
+                        continue
+                    href = link_el.get('href', '').strip()
+                    if not href or href in ('/', '#') or any(x in href for x in ['/tag/', '/cat/', '/page/']):
+                        continue
+                    full_url = href if href.startswith('http') else 'https://www.camwhores.tv' + href
+                    if full_url in seen:
+                        continue
+                    seen.add(full_url)
+                    title = (link_el.get('title') or safe_get_text(item.select_one('.title, h3, h4, [class*="title"]'))).strip()
+                    if not title:
+                        continue
+                    img_el = item.find('img')
+                    thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                    dur_el = item.select_one('.duration, [class*="dur"]')
+                    add_record(results, title, full_url, thumb, "CamWhores",
+                               parse_duration(safe_get_text(dur_el)) if dur_el else 600)
+                except:
+                    continue
+            if results:
+                break
+        print(f"CamWhores q={q!r} p={page}: {len(results)} items")
+    except Exception as e:
+        print(f"CamWhores error: {e}")
+    return results
 
 
 def _generic_scrape(q, page, base_url, search_url, source, item_sel, title_sel, link_sel, img_sel, dur_sel=None):
