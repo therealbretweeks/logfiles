@@ -349,7 +349,7 @@ function switchMatrixPage(n) {
     let q = '';
     if (n===2) q = 'ginger lynn, christy canyon, lacey rose, kasey kox';
     else if (n===3) q = 'bree olsen, riley reid';
-    else if (n===4) q = 'brooke marie';
+    else if (n===4) q = 'brooke marie, goddess brooke marie, brooke and vikki, miss vikki, vikki lynn';
     document.getElementById('globalSearch').value = q;
     runSearch('main', q, true);
 }
@@ -512,7 +512,14 @@ function setView(v) {
     });
     ['gallery','altGallery'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) { el.classList.remove('view-text','view-icons','view-gallery'); el.classList.add('view-'+v); }
+        if (!el) return;
+        el.classList.remove('view-text','view-icons','view-gallery');
+        el.classList.add('view-'+v);
+        // Also update all inner tube-section-grids
+        el.querySelectorAll('.tube-section-grid').forEach(g => {
+            g.classList.remove('view-text','view-icons','view-gallery');
+            g.classList.add('view-'+v);
+        });
     });
 }
 
@@ -560,7 +567,14 @@ function appendItems(items, zone) {
         gallery.classList.add('view-'+currentView);
     }
     const filter = state[zone].filter;
-    const filtered = items.filter(v => v.title && v.url && (filter==='All' || v.source.toLowerCase()===filter.toLowerCase()));
+    const BROOKE_TERMS = ['brooke marie','goddess brooke','brooke and vikki','miss vikki','vikki lynn','brooke & vikki'];
+    const isBrookeTab = (zone==='main' && currentMatrixPage===4);
+    const filtered = items.filter(v => {
+        if (!v.title || !v.url) return false;
+        if (filter!=='All' && v.source.toLowerCase()!==filter.toLowerCase()) return false;
+        if (isBrookeTab) { const tl=v.title.toLowerCase(); return BROOKE_TERMS.some(t=>tl.includes(t)); }
+        return true;
+    });
 
     // Group by source
     const bySource = {};

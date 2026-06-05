@@ -22,13 +22,13 @@ DB_FILE = os.path.join(BASE_DIR, "db.json")
 TUBE_DOMAINS = sorted([
     "4kPorn", "AnySex", "Beeg", "CamStreams", "CamWhores", "DrTuber", "EroMe",
     "Eporner", "FreeoMovie", "FullPorner", "HQporner", "InPorn", "JustPorn",
-    "LetsJerk", "Motherless", "NetFapX", "OK.xxx", "ParadiseHill", "Perfect Girls",
+    "Motherless", "NetFapX", "OK.xxx", "ParadiseHill", "Perfect Girls",
     "Porn00", "Porn300", "Porn4Days", "PornDig", "PornDish", "PornDoe", "PornGo",
     "PornHat", "PornHoarder", "PornSlash", "PornTop", "PornTrex", "PornXP",
     "PornoBae", "Pornhub", "PussySpace", "RedTube", "SpankBang", "TNAFlix",
     "TXXX", "Tube8", "TrendyPorn", "WatchPorn", "WatchXXXFree", "WhoresHub",
-    "XFreeHD", "XNXX", "XMoviesForYou", "XVideos", "XXXFiles", "YouJizz",
-    "YouPorn", "YourPorn", "xHamster",
+    "XFantazy", "XFreeHD", "XNXX", "XMoviesForYou", "XVideos", "XXXFiles",
+    "YouJizz", "YouPorn", "YourPorn", "xHamster",
 ], key=lambda x: x.lower())
 
 FORBIDDEN_WORDS = [
@@ -508,10 +508,10 @@ def scrape_camwhores(q, page=1):
     results = []
     try:
         for url in [
-            f"https://www.camwhores.tv/search/{requests.utils.quote(q)}/videos/{page}/",
-            f"https://camwhores.tv/search/?q={requests.utils.quote(q)}&page={page}",
+            f"https://www.camwhores.video/search/{requests.utils.quote(q)}/videos/{page}/",
+            f"https://www.camwhores.video/search/?q={requests.utils.quote(q)}&page={page}",
         ]:
-            res = safe_get(url, extra_headers={'Referer': 'https://camwhores.tv/'})
+            res = safe_get(url, extra_headers={'Referer': 'https://www.camwhores.video/'})
             if not res or res.status_code != 200:
                 continue
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -524,7 +524,7 @@ def scrape_camwhores(q, page=1):
                     href = link_el.get('href', '').strip()
                     if not href or href in ('/', '#') or any(x in href for x in ['/tag/', '/cat/', '/page/']):
                         continue
-                    full_url = href if href.startswith('http') else 'https://www.camwhores.tv' + href
+                    full_url = href if href.startswith('http') else 'https://www.camwhores.video' + href
                     if full_url in seen:
                         continue
                     seen.add(full_url)
@@ -532,7 +532,8 @@ def scrape_camwhores(q, page=1):
                     if not title:
                         continue
                     img_el = item.find('img')
-                    thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                    thumb = (img_el.get('data-src') or img_el.get('data-original') or img_el.get('src') or '') if img_el else ''
+                    if thumb and thumb.startswith('/'): thumb = 'https://www.camwhores.video' + thumb
                     dur_el = item.select_one('.duration, [class*="dur"]')
                     add_record(results, title, full_url, thumb, "CamWhores",
                                parse_duration(safe_get_text(dur_el)) if dur_el else 600)
@@ -544,6 +545,18 @@ def scrape_camwhores(q, page=1):
     except Exception as e:
         print(f"CamWhores error: {e}")
     return results
+
+
+def scrape_xfantazy(q, page=1):
+    return _generic_scrape(q, page,
+        'https://xfantazy.com',
+        f'https://xfantazy.com/search?q={requests.utils.quote(q)}&page={page}',
+        'XFantazy',
+        '.video-item, .thumb, article, [class*="video"]',
+        '.title a, h3 a, [class*="title"]',
+        'a[href]',
+        'img[data-src], img[data-original], img[src]',
+        '.duration')
 
 
 def _generic_scrape(q, page, base_url, search_url, source, item_sel, title_sel, link_sel, img_sel, dur_sel=None):
@@ -1315,8 +1328,11 @@ def run_alt_scrape(query, page=1, preferred_source=None, sort_by='default'):
 # ==================== ORCHESTRATION ====================
 
 # All scrapers except SpankBang (handled via bulk)
-# Fast tier — known to return results quickly
+# Fast tier — scraped on page 1
 SCRAPERS_FAST = [
+    scrape_camstreams,
+    scrape_camwhores,
+    scrape_xfantazy,
     scrape_eporner,
     scrape_xhamster,
     scrape_xvideos,
@@ -1326,8 +1342,6 @@ SCRAPERS_FAST = [
     scrape_perfectgirls,
     scrape_porntop,
     scrape_txxx,
-    scrape_camstreams,
-    scrape_camwhores,
 ]
 
 # Slow tier — tried on page 2+
@@ -1344,7 +1358,6 @@ SCRAPERS_SLOW = [
     scrape_fullporner,
     scrape_porn300,
     scrape_pornobaee,
-    scrape_letsjerk,
     scrape_pornhat,
     scrape_netfapx,
     scrape_inporn,
