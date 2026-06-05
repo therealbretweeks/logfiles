@@ -105,12 +105,12 @@
         .trt-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 3px; z-index: 2; }
         .vol-badge { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.75); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; z-index: 2; opacity: 0; transition: opacity 0.2s; }
         .media-container.previewing .vol-badge { opacity: 1; }
-        .card h3 { margin: 14px 14px 6px; font-size: 13.5px; line-height: 1.4; flex-grow: 1; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .card h3 { margin: 6px 8px 4px; font-size: 10px; line-height: 1.3; flex-grow: 1; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .card h3 a { color: var(--text-main); text-decoration: none; }
         .card h3 a:hover { color: var(--accent); }
-        .card-footer { padding: 0 14px 14px; display: flex; justify-content: space-between; align-items: center; }
-        .source-tag { font-size: 10px; font-weight: 700; color: var(--accent); background: rgba(255,140,58,0.05); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,140,58,0.1); cursor: pointer; }
-        .date-tag { font-size: 11px; color: var(--text-muted); }
+        .card-footer { padding: 0 8px 8px; display: flex; justify-content: space-between; align-items: center; }
+        .source-tag { font-size: 9px; font-weight: 700; color: var(--accent); background: rgba(255,140,58,0.05); padding: 2px 5px; border-radius: 4px; border: 1px solid rgba(255,140,58,0.1); cursor: pointer; }
+        .date-tag { font-size: 9px; color: var(--text-muted); }
         .scroll-indicator { grid-column: 1 / -1; text-align: center; padding: 30px; font-size: 12px; color: var(--text-muted); font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
 
         /* ── PANELS ── */
@@ -325,6 +325,12 @@ function switchToAlt() {
     document.getElementById('altSidebar').style.display = 'block';
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active-tab'));
     document.getElementById('tab-alt').classList.add('active-tab');
+    // Autoload ALT if nothing loaded yet
+    if (state.alt.pool.length === 0 && !state.alt.exhausted) {
+        const q = getQuery('alt') || 'bdsm femdom trans';
+        document.getElementById('altSearch').value = q;
+        runSearch('alt', q, true);
+    }
 }
 
 function triggerInstantSearch() { currentMatrixPage = 1; document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active-tab')); runSearch('main', getQuery('main'), true); }
