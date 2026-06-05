@@ -485,7 +485,13 @@ def scrape_camstreams(q, page=1):
                     if not title:
                         continue
                     img_el = item.find('img')
-                    thumb = (img_el.get('data-src') or img_el.get('src') or '') if img_el else ''
+                    thumb = ''
+                    if img_el:
+                        thumb = (img_el.get('data-src') or img_el.get('data-original') or
+                                 img_el.get('data-lazy') or img_el.get('data-thumb') or
+                                 img_el.get('src') or '')
+                        if thumb and thumb.startswith('/'):
+                            thumb = 'https://camstreams.tv' + thumb
                     add_record(results, title, full_url, thumb, "CamStreams")
                 except:
                     continue
@@ -564,7 +570,11 @@ def _generic_scrape(q, page, base_url, search_url, source, item_sel, title_sel, 
                     continue
                 thumb = ''
                 if img_el:
-                    thumb = img_el.get('data-src') or img_el.get('data-original') or img_el.get('src') or ''
+                    thumb = (img_el.get('data-src') or img_el.get('data-original') or
+                             img_el.get('data-lazy') or img_el.get('data-thumb') or
+                             img_el.get('data-url') or img_el.get('src') or '')
+                    if thumb and thumb.startswith('/'):
+                        thumb = base_url + thumb
                 dur = 600
                 if dur_sel:
                     dur_el = item.select_one(dur_sel)
