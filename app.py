@@ -1467,6 +1467,18 @@ def alt_search():
     return jsonify(run_alt_scrape(query, page=page, preferred_source=preferred_source, sort_by=sort_by))
 
 
+@app.route("/clear_db", methods=["POST"])
+def clear_db():
+    try:
+        save_db([])
+        if os.path.exists(ALT_DB_FILE):
+            with open(ALT_DB_FILE, "w", encoding="utf-8") as f:
+                json.dump([], f)
+        return jsonify({"status": "cleared"})
+    except Exception as e:
+        return jsonify({"status": "error", "msg": str(e)}), 500
+
+
 if __name__ == "__main__":
     db = load_db()
     if len(db) < 100:

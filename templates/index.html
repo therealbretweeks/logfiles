@@ -141,6 +141,7 @@
                 <div class="search-row">
                     <input type="text" id="globalSearch" class="search-box" placeholder='Search all networks... use "quotes" for exact' onkeydown="if(event.key==='Enter')triggerInstantSearch()">
                     <button class="search-btn" onclick="triggerInstantSearch()">Scan Matrix</button>
+                    <button class="search-btn" style="background:#333;color:#ff4444;font-size:10px;padding:14px 14px;" onclick="clearAllDbs()" title="Clear cached DB and start fresh">&#128465; Clear DB</button>
                 </div>
                 <div class="sort-row">
                     <span class="sort-label">Sort:</span>
@@ -323,6 +324,16 @@ function switchToAlt() {
 }
 
 function triggerInstantSearch() { currentMatrixPage = 1; document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active-tab')); runSearch('main', getQuery('main'), true); }
+
+async function clearAllDbs() {
+    if (!confirm('Clear all cached results? Fresh scrapes will run on next search.')) return;
+    await fetch('/clear_db', { method: 'POST' });
+    state.main.pool = []; state.main.page = 1; state.main.exhausted = false;
+    state.alt.pool = []; state.alt.page = 1; state.alt.exhausted = false;
+    document.getElementById('gallery').innerHTML = '';
+    document.getElementById('altGallery').innerHTML = '';
+    alert('DB cleared. Run a search to pull fresh results.');
+}
 function triggerAltSearch() { runSearch('alt', getQuery('alt'), true); }
 
 // ── FETCH ─────────────────────────────────────────────────
