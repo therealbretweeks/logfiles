@@ -509,6 +509,18 @@ def scrape_camstreams(q, page=1):
 
 
 
+def scrape_camwhores(q, page=1):
+    return _generic_scrape(q, page,
+        'https://camwhores.tv',
+        f'https://camwhores.tv/search/{requests.utils.quote(q)}/{page}/',
+        'CamWhores',
+        '.thumb-block, .video-item, article',
+        '.title a, h3 a, .video-title',
+        'a[href]',
+        'img[data-src], img[src]',
+        '.duration')
+
+
 def _generic_scrape(q, page, base_url, search_url, source, item_sel, title_sel, link_sel, img_sel, dur_sel=None):
     """Shared HTML scraper for sites with standard grid layouts."""
     results = []
@@ -1274,18 +1286,19 @@ def run_alt_scrape(query, page=1, preferred_source=None, sort_by='default'):
 
 # All scrapers except SpankBang (handled via bulk)
 SCRAPERS_NO_SB = [
-    scrape_eporner,
-    scrape_xhamster,
+    scrape_camstreams,
+    scrape_camwhores,
     scrape_xvideos,
+    scrape_xhamster,
     scrape_xnxx,
     scrape_pornhub,
     scrape_beeg,
-    scrape_camstreams,
     scrape_redtube,
     scrape_youporn,
     scrape_tube8,
     scrape_hqporner,
     scrape_txxx,
+    scrape_eporner,
     scrape_drtuber,
     scrape_tnaflix,
     scrape_anysex,
