@@ -49,7 +49,7 @@ BASE_HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 }
 
-def safe_get(url, extra_headers=None, timeout=10):
+def safe_get(url, extra_headers=None, timeout=4):
     headers = {**BASE_HEADERS, **(extra_headers or {})}
     for attempt in range(3):
         try:
@@ -1321,7 +1321,7 @@ def _collect(futures_with_sq):
     out = []
     for f, sq in futures_with_sq:
         try:
-            for r in f.result(timeout=30):
+            for r in f.result(timeout=8):
                 r['_q'] = sq.lower()
                 out.append(r)
         except Exception as e:
@@ -1391,11 +1391,10 @@ def run_deep_target_scrape(query, page=1, preferred_source=None, sort_by='defaul
     pool = _build_pool(master_db, sub_queries, exact, clean)
 
     if len(pool) < need_up_to:
-        # Determine next site-pages to scrape (estimate based on pool size)
-        # Each site averages ~20-30 results/page; use pool size to estimate coverage
         already = max(len(pool) // max(len(sub_queries), 1) // 25, 0)
         batch_start = already + 1
-        site_pages = list(range(batch_start, batch_start + 10))
+        batch_size = 3 if page == 1 else 6
+        site_pages = list(range(batch_start, batch_start + batch_size))
         aggregated = _do_scrape(sub_queries, site_pages)
         new_records = _save_new(aggregated, master_db)
         master_db = load_db()
