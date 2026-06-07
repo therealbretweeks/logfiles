@@ -95,10 +95,7 @@
         @keyframes scrollTicker { 0%{transform:translateX(0)} 100%{transform:translateX(-33.333%)} }
 
         /* ── VIEW MODES ── */
-        .gallery { display: grid; gap: 12px; }
-        .gallery.view-icons { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-        .gallery.view-gallery { grid-template-columns: repeat(4, 1fr); gap: 16px; }
-        .gallery.view-text { display: block; }
+        .gallery { display: block; }
 
         /* Tube section separator */
         .tube-section { margin-bottom: 10px; }
@@ -106,9 +103,17 @@
         .tube-section-header:hover { color: var(--accent); }
         .tube-section-header .tube-count { font-size: 9px; color: #333344; }
         .tube-section-grid { display: grid; gap: 12px; }
-        .view-icons .tube-section-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-        .view-gallery .tube-section-grid { grid-template-columns: repeat(4, 1fr); }
+        .view-icons .tube-section-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        .view-gallery .tube-section-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .view-text .tube-section-grid { display: block; }
+        @media (max-width: 1400px) {
+            .gallery.view-icons, .view-icons .tube-section-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .gallery.view-gallery, .view-gallery .tube-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 900px) {
+            .gallery.view-icons, .view-icons .tube-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .gallery.view-gallery, .view-gallery .tube-section-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+        }
         .card { background: var(--bg-card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); transition: transform 0.2s; }
         .card:hover { transform: translateY(-2px); border-color: #333344; }
         .view-gallery .card .media-container { height: 160px; }
@@ -121,9 +126,9 @@
         .view-text .card .card-footer { padding: 0 8px 0 0; flex-shrink: 0; gap: 8px; }
         .view-text .card .trt-badge { font-size: 9px; }
         /* Text view hover thumb popup */
-        .thumb-popup { position: fixed; width: 200px; height: 120px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); pointer-events: none; z-index: 9999; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.8); }
+        .thumb-popup { position: fixed; width: 400px; height: 240px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); pointer-events: none; z-index: 9999; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.8); }
         .thumb-popup img { width: 100%; height: 100%; object-fit: cover; }
-        .media-container { width: 100%; height: 85px; position: relative; background: #0a0a0f; overflow: hidden; }
+        .media-container { display: block; width: 100%; height: 85px; position: relative; background: #0a0a0f; overflow: hidden; }
         .media-container::before { content:''; position:absolute; inset:0; background: linear-gradient(90deg,#0f0f14 25%,#1a1a24 50%,#0f0f14 75%); background-size:200% 100%; animation: shimmer 1.2s infinite; z-index:0; }
         .media-container.loaded::before { display:none; }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
@@ -529,11 +534,11 @@ function makeCard(v, zone) {
     const ss = (v.source||'').replace(/'/g,"\\'");
     const thumb = v.thumb || '';
     card.innerHTML = `
-        <div class="media-container">
+        <a class="media-container" href="${v.url}" target="_blank" rel="noopener">
             <img src="${thumb}" alt="" loading="lazy" onload="this.closest('.media-container').classList.add('loaded')" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>';this.closest('.media-container').classList.add('loaded');">
             <div class="trt-badge">${fmt(v.duration)}</div>
             <div class="vol-badge">&#9654; 20%</div>
-        </div>
+        </a>
         <h3><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a></h3>
         <div class="card-footer">
             <span class="source-tag" onclick="event.stopPropagation();filterByActiveSite('${ss}','${zone}')">${esc(v.source)}</span>
