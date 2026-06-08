@@ -1,20 +1,33 @@
 @echo off
-cd /d C:\Users\bretw\Desktop\app
-echo Pulling latest code from GitHub...
+setlocal
+cd /d C:\Users\bretw\Desktop
+
+echo Backing up your saved database files...
+if exist app\db.json copy /y app\db.json db_backup.json >nul
+if exist app\alt_db.json copy /y app\alt_db.json alt_db_backup.json >nul
+
+echo Removing old app folder...
+if exist app rmdir /s /q app
+
+echo Cloning fresh copy from GitHub...
 set GIT_TERMINAL_PROMPT=0
-set GCM_INTERACTIVE=Never
-git fetch origin claude/sweet-heisenberg-3X4ca
-if errorlevel 1 goto fetchfail
-git reset --hard origin/claude/sweet-heisenberg-3X4ca
-echo Done.
+git clone -b claude/sweet-heisenberg-3X4ca https://github.com/therealbretweeks/logfiles.git app
+if errorlevel 1 goto clonefail
+
+echo Restoring your saved database files...
+if exist db_backup.json move /y db_backup.json app\db.json >nul
+if exist alt_db_backup.json move /y alt_db_backup.json app\alt_db.json >nul
+
+echo.
+echo Done. Fresh copy is ready in C:\Users\bretw\Desktop\app
 pause
 goto :eof
 
-:fetchfail
+:clonefail
 echo.
-echo Fetch failed - your saved Git credentials are missing or expired.
-echo Open a normal Command Prompt in this folder and run:
-echo   git fetch origin claude/sweet-heisenberg-3X4ca
+echo Clone failed - your saved Git credentials are missing or expired.
+echo Open a normal Command Prompt anywhere and run:
+echo   git clone -b claude/sweet-heisenberg-3X4ca https://github.com/therealbretweeks/logfiles.git C:\Users\bretw\Desktop\app_test
 echo This will trigger the login popup so you can sign in and cache credentials.
-echo Then re-run update.bat.
+echo Then delete app_test and re-run update.bat.
 pause
