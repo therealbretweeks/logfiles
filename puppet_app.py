@@ -50,7 +50,7 @@ BASE_HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 }
 
-def safe_get(url, extra_headers=None, timeout=2):
+def safe_get(url, extra_headers=None, timeout=5):
     headers = {**BASE_HEADERS, **(extra_headers or {})}
     for attempt in range(3):
         try:
@@ -1384,7 +1384,7 @@ def _collect(futures_with_sq):
     out = []
     for f, sq in futures_with_sq:
         try:
-            for r in f.result(timeout=8):
+            for r in f.result(timeout=14):
                 r['_q'] = sq.lower()
                 out.append(r)
         except Exception as e:
