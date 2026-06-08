@@ -1265,7 +1265,7 @@ def save_alt_db(data):
     except:
         pass
 
-def _do_alt_scrape(sub_queries, site_pages):
+def _do_alt_scrape(sub_queries, site_pages, early_exit=None):
     with ThreadPoolExecutor(max_workers=32) as executor:
         futures = []
         for sq in sub_queries:
@@ -1274,7 +1274,7 @@ def _do_alt_scrape(sub_queries, site_pages):
                     p = pg - 1 if scraper in (scrape_xvideos, scrape_xnxx) else pg
                     futures.append((executor.submit(scraper, sq, p), sq))
             futures.append((executor.submit(scrape_spankbang_bulk, sq, site_pages), sq))
-        return _collect(futures)
+        return _collect(futures, early_exit=early_exit)
 
 def run_alt_scrape(query, page=1, preferred_source=None, sort_by='default'):
     exact = is_exact(query)
@@ -1295,8 +1295,9 @@ def run_alt_scrape(query, page=1, preferred_source=None, sort_by='default'):
         already = max(len(pool) // max(len(sub_queries), 1) // 25, 0)
         batch_start = already + 1
         batch_size = 1 if page == 1 else 3
+        early_exit = page_size if page == 1 else None
         site_pages = list(range(batch_start, batch_start + batch_size))
-        aggregated = _do_alt_scrape(sub_queries, site_pages)
+        aggregated = _do_alt_scrape(sub_queries, site_pages, early_exit=early_exit)
         existing_urls = {x["url"] for x in master_db if "url" in x}
         new_records, seen = [], set()
         for r in aggregated:
@@ -1380,19 +1381,27 @@ SCRAPERS_SLOW = [
 SCRAPERS_NO_SB = SCRAPERS_FAST + SCRAPERS_SLOW
 
 
-def _collect(futures_with_sq):
+def _collect(futures_with_sq, early_exit=None):
     out = []
-    for f, sq in futures_with_sq:
-        try:
-            for r in f.result(timeout=14):
-                r['_q'] = sq.lower()
-                out.append(r)
-        except Exception as e:
-            pass
+    sq_by_future = {f: sq for f, sq in futures_with_sq}
+    pending = set(sq_by_future)
+    try:
+        for f in as_completed(pending, timeout=14):
+            sq = sq_by_future[f]
+            try:
+                for r in f.result():
+                    r['_q'] = sq.lower()
+                    out.append(r)
+            except Exception:
+                pass
+            if early_exit and len(out) >= early_exit:
+                break
+    except Exception:
+        pass
     return out
 
 
-def _do_scrape(sub_queries, site_pages, fast_only=False):
+def _do_scrape(sub_queries, site_pages, fast_only=False, early_exit=None):
     scrapers = SCRAPERS_FAST if fast_only else SCRAPERS_NO_SB
     with ThreadPoolExecutor(max_workers=32) as executor:
         futures = []
@@ -1402,7 +1411,7 @@ def _do_scrape(sub_queries, site_pages, fast_only=False):
                     p = pg - 1 if scraper in (scrape_xvideos, scrape_xnxx) else pg
                     futures.append((executor.submit(scraper, sq, p), sq))
             futures.append((executor.submit(scrape_spankbang_bulk, sq, site_pages), sq))
-        return _collect(futures)
+        return _collect(futures, early_exit=early_exit)
 
 
 def _save_new(aggregated, master_db):
@@ -1459,8 +1468,9 @@ def run_deep_target_scrape(query, page=1, preferred_source=None, sort_by='defaul
         # Page 2+: 3 site-pages, all scrapers
         batch_size = 1 if page == 1 else 3
         fast_only = (page == 1)
+        early_exit = page_size if page == 1 else None
         site_pages = list(range(batch_start, batch_start + batch_size))
-        aggregated = _do_scrape(sub_queries, site_pages, fast_only=fast_only)
+        aggregated = _do_scrape(sub_queries, site_pages, fast_only=fast_only, early_exit=early_exit)
         new_records = _save_new(aggregated, master_db)
         master_db = load_db()
         pool = _build_pool(master_db, sub_queries, exact, clean)
