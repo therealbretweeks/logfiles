@@ -117,6 +117,7 @@
         .card { background: var(--bg-card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); transition: transform 0.2s; }
         .card:hover { transform: translateY(-2px); border-color: #333344; }
         .view-gallery .card .media-container { height: auto; aspect-ratio: 16 / 9; }
+        .view-icons .card .media-container { height: auto; aspect-ratio: 16 / 9; }
         .view-gallery .card h3 { font-size: 12px; margin: 8px 10px 5px; }
         /* Text view card */
         .view-text .card { flex-direction: row; align-items: center; border-radius: 6px; margin-bottom: 4px; background: transparent; border-color: transparent; border-bottom: 1px solid var(--border); }
@@ -267,8 +268,8 @@
 <script>
 // ── STATE ────────────────────────────────────────────────
 const state = {
-    main: { pool: [], page: 1, exhausted: false, filter: 'All', sort: 'default', exact: false, blocked: false },
-    alt:  { pool: [], page: 1, exhausted: false, filter: 'All', sort: 'default', exact: false, blocked: false },
+    main: { pool: [], page: 1, exhausted: false, filter: 'All', sort: 'default', exact: false, blocked: false, emptyStreak: 0, shown: 0 },
+    alt:  { pool: [], page: 1, exhausted: false, filter: 'All', sort: 'default', exact: false, blocked: false, emptyStreak: 0, shown: 0 },
 };
 let activeZone = 'main';
 let currentMatrixPage = 1;
@@ -400,7 +401,7 @@ async function runSearch(zone, query, flush=false) {
         return;
     }
     const s = state[zone];
-    if (flush) { s.pool=[]; s.page=1; s.exhausted=false; s.blocked=false; document.getElementById(zone==='main'?'gallery':'altGallery').innerHTML=''; document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Loading…'; }
+    if (flush) { s.pool=[]; s.page=1; s.exhausted=false; s.blocked=false; s.emptyStreak=0; s.shown=0; document.getElementById(zone==='main'?'gallery':'altGallery').innerHTML=''; document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Loading…'; }
     if (s.blocked || s.exhausted) return;
     s.blocked = true;
 
@@ -411,13 +412,22 @@ async function runSearch(zone, query, flush=false) {
     try {
         const batch = await (await fetch(url)).json();
         if (!Array.isArray(batch) || !batch.length) {
-            if (!s.pool.length) document.getElementById(zone==='main'?'gallery':'altGallery').innerHTML='<p style="text-align:center;color:var(--text-muted);grid-column:1/-1;padding:60px;">No results found.</p>';
-            s.exhausted = true;
-            document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='END OF RESULTS';
+            s.emptyStreak++;
+            // Scrapers can transiently return zero — only give up after several consecutive misses
+            if (s.emptyStreak >= 5) {
+                if (!s.pool.length) document.getElementById(zone==='main'?'gallery':'altGallery').innerHTML='<p style="text-align:center;color:var(--text-muted);grid-column:1/-1;padding:60px;">No results found.</p>';
+                s.exhausted = true;
+                document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='END OF RESULTS';
+                s.blocked = false;
+                updateSidebar(zone);
+                return;
+            }
+            s.page++;
             s.blocked = false;
-            updateSidebar(zone);
+            if (activeZone === zone) setTimeout(() => runSearch(zone, query, false), 800);
             return;
         }
+        s.emptyStreak = 0;
         const seen = new Set(s.pool.map(r=>r.url));
         const newItems = batch.filter(r=>r.title&&r.url&&!seen.has(r.url));
         s.pool = [...s.pool, ...newItems];
@@ -426,8 +436,8 @@ async function runSearch(zone, query, flush=false) {
         s.page++;
         s.blocked = false;
         document.getElementById(zone==='main'?'scrollStatus':'altScrollStatus').textContent='Scroll down to load more';
-        // Keep scraping in background only if user is still on this zone
-        if (s.pool.length < 200 && !s.exhausted && activeZone === zone) {
+        // Scrapers keep scraping in background, staying ~2 pages of cards ahead of what's been scrolled into view
+        if (!s.exhausted && activeZone === zone && s.pool.length < s.shown + 300) {
             setTimeout(() => runSearch(zone, query, false), 1200);
         }
     } catch(e) {
@@ -566,6 +576,7 @@ function makeCard(v, zone) {
 }
 
 function appendItems(items, zone) {
+    state[zone].shown += items.length;
     const gallery = document.getElementById(zone==='main'?'gallery':'altGallery');
     if (!gallery.classList.contains('view-'+currentView)) {
         gallery.classList.remove('view-text','view-icons','view-gallery');
