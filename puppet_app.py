@@ -17,7 +17,7 @@ except ImportError:
 app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_FILE = os.path.join(BASE_DIR, "db.json")
+DB_FILE = os.path.join(BASE_DIR, "puppet_db.json")
 
 TUBE_DOMAINS = sorted([
     "4kPorn", "AnySex", "Beeg", "CamStreams", "CamWhores", "DrTuber", "EroMe",
@@ -1247,7 +1247,7 @@ ALT_SCRAPERS = [
     scrape_transtube, scrape_shemale777, scrape_transvids, scrape_shemalevids,
 ]
 
-ALT_DB_FILE = os.path.join(BASE_DIR, "alt_db.json")
+ALT_DB_FILE = os.path.join(BASE_DIR, "puppet_alt_db.json")
 
 def load_alt_db():
     if not os.path.exists(ALT_DB_FILE):
@@ -1497,7 +1497,7 @@ ALT_DOMAINS = [
 
 @app.route("/")
 def index():
-    return render_template("index.html", networks=TUBE_DOMAINS, alt_networks=ALT_DOMAINS)
+    return render_template("puppet_index.html", networks=TUBE_DOMAINS, alt_networks=ALT_DOMAINS)
 
 
 @app.route("/fast_search", methods=["GET"])
